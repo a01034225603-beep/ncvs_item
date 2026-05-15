@@ -23,7 +23,9 @@
       "Skill(superpowers:test-driven-development)",
       "Bash(git checkout *)",
       "Bash(./.venv/Scripts/python.exe -c \"from app.services.crosstest.scheduler import CrossTestScheduler, pick_next_dispatchable; from app.services.crosstest.runner import PairRunner, WorkItem; print\\('ok'\\)\")",
-      "Bash(./.venv/Scripts/python.exe *)"
+      "Bash(./.venv/Scripts/python.exe *)",
+      "Skill(superpowers:using-superpowers)",
+      "PowerShell($doc)"
     ]
   },
   "enabledPlugins": {
