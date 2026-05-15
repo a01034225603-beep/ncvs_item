@@ -1,6 +1,6 @@
 # BACS Monitoring & Cross-Test System Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Build a BACS monitoring system with periodic UDP health-check and a cross-test scheduler that verifies send/receive between selected BACS devices under device-level concurrency locks.
 
@@ -9,6 +9,55 @@
 **Tech Stack:** Python 3.12, FastAPI, SQLAlchemy 2.x async, MySQL 8, Alembic, APScheduler, asyncio, pytest + pytest-asyncio, bcrypt, PyJWT, Next.js 14 (App Router), TypeScript, docker-compose.
 
 **Spec reference:** `docs/superpowers/specs/2026-05-15-bacs-monitoring-design.md`
+
+
+---
+
+## Implementation Status (updated 2026-05-16)
+
+**Branch:** `feature/bacs-monitoring`  
+**Phases 0–4 complete (Tasks 0–14).** 16/16 tests passing. All DB schema applied via Alembic to local MariaDB 11.4 (`ncvs`, `ncvs_test`). Remaining: Phases 5–7 (Tasks 15–24): auth + API endpoints + seed CLI + Next.js frontend + Dockerfiles.
+
+Commit map (most recent first):
+
+| Task | Commit | Description |
+|---|---|---|
+| 14 | 7c3edc0 | test(crosstest): verify device-lock invariant across overlapping sessions |
+| 13 | 738db37 | feat(crosstest): session service and end-to-end integration test |
+| 8  | a79da29 | feat(health): periodic UDP heartbeat check with TDD coverage |
+| 3  | 8b8ed56 | feat(migrations): initial schema |
+| 12 | 38750e9 | feat(crosstest): scheduler dispatch loop and pair runner |
+| 11 | 81afbf6 | feat(crosstest): pair-dispatch pick logic with TDD |
+| 10 | 59cf076 | feat(repo): session, pair, lock repositories |
+| 9  | 8734f80 | feat(crosstest): DeviceLocker with deadlock-free pair acquisition |
+| 7  | 8af81f3 | feat(repo): device and health repositories |
+| 6  | f76d089 | feat(protocol): CrossTestProtocol interface and stub implementation |
+| 5  | f787fb2 | feat(protocol): UDP heartbeat client + fake BACS simulator |
+| 4  | 240e814 | feat(protocol): UDP Connect REQ/RPT pack/unpack with tests |
+| 2  | f498dbc | feat(models): add ORM models for users, bacs, health, sessions, pairs, locks |
+| 1  | 48f0939 | feat(backend): add settings and async DB engine |
+| 0  | fdaae46 | chore: scaffold backend and compose |
+
+### Environment notes for the next session
+
+- **Working dir:** `C:\Project\MyProject
+cvs`. Backend tree under `backend/`.
+- **Python venv** already provisioned at `backend/.venv` (Python 3.12.8). Run tools as `./.venv/Scripts/python.exe ...` from `backend/`. Deps installed via `pip install -e ".[dev]"` plus `pymysql cryptography` (for Alembic sync driver).
+- **Docker is NOT available** on this machine. `docker-compose.yml` exists but is unused for local dev.
+- **Local MariaDB 11.4** at `127.0.0.1:3306`. User `ncvs`/`ncvs` with full grants on DBs `ncvs` (app) and `ncvs_test` (pytest). Client at `C:\Program Files\MariaDB 11.4in\mariadb.exe`.
+- **`.env`** present at both `<repo>/.env` and `<repo>/backend/.env` (pydantic-settings resolves from CWD).
+- **Test command:** `cd backend && ./.venv/Scripts/python.exe -m pytest -q`. Currently 16 passed.
+- **Known deviations from plan (intentional):**
+  - Task 5 no-responder test accepts `(asyncio.TimeoutError, ConnectionResetError, OSError)` because Windows surfaces ICMP port-unreachable through `error_received`, not as a timeout.
+  - Task 8 `conftest.py` uses pytest-asyncio `loop_scope="session"` with `asyncio_default_fixture_loop_scope = "session"` and `asyncio_default_test_loop_scope = "session"` added to `pyproject.toml [tool.pytest.ini_options]`. Required because pytest-asyncio 1.3+ otherwise gives "Task got Future attached to a different loop" on session-scoped DB engine.
+  - Task 14 invariant assertion uses `len(set(devices_in_flight)) == len(devices_in_flight)` instead of the plan's `len(devices_in_flight) == 2 * (len(run_a) + len(run_b))` — clearer and equivalent.
+- **Known warnings (non-blocking):** 41× `datetime.utcnow()` deprecation, `passlib` unmaintained (will affect Task 15 when implemented), `PytestCollectionWarning` on `TestSession`/`TestSessionPair` model names.
+
+### Next steps
+
+1. Phase 5 (Tasks 15–18): security helpers, FastAPI app + auth, device/health/test/matrix endpoints, seed CLI.
+2. Phase 6 (Tasks 19–23): Next.js frontend (login, devices dashboard, test progress, matrix).
+3. Phase 7 (Task 24): Dockerfiles + compose smoke (deprioritized since Docker is unavailable locally — write the files anyway, defer execution).
 
 ---
 
@@ -132,7 +181,7 @@ README.md
 - Create: `docker-compose.yml`
 - Create: `.gitignore`
 
-- [ ] **Step 1: Create `backend/pyproject.toml`**
+- [x] **Step 1: Create `backend/pyproject.toml`**
 
 ```toml
 [project]
@@ -170,7 +219,7 @@ line-length = 100
 target-version = "py312"
 ```
 
-- [ ] **Step 2: Create `.env.example`**
+- [x] **Step 2: Create `.env.example`**
 
 ```dotenv
 DATABASE_URL=mysql+aiomysql://ncvs:ncvs@localhost:3306/ncvs
@@ -187,7 +236,7 @@ CROSSTEST_MAX_CONCURRENT_PAIRS=150
 CROSSTEST_DISPATCH_INTERVAL_MS=100
 ```
 
-- [ ] **Step 3: Create `docker-compose.yml`**
+- [x] **Step 3: Create `docker-compose.yml`**
 
 ```yaml
 services:
@@ -221,7 +270,7 @@ volumes:
   mysql-data:
 ```
 
-- [ ] **Step 4: Create `.gitignore`**
+- [x] **Step 4: Create `.gitignore`**
 
 ```
 __pycache__/
@@ -232,7 +281,7 @@ node_modules/
 .env
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add backend/pyproject.toml backend/app/__init__.py backend/tests/__init__.py \
@@ -248,7 +297,7 @@ git commit -m "chore: scaffold backend and compose"
 - Create: `backend/app/config.py`
 - Create: `backend/app/db.py`
 
-- [ ] **Step 1: Create `backend/app/config.py`**
+- [x] **Step 1: Create `backend/app/config.py`**
 
 ```python
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -274,7 +323,7 @@ class Settings(BaseSettings):
 settings = Settings()
 ```
 
-- [ ] **Step 2: Create `backend/app/db.py`**
+- [x] **Step 2: Create `backend/app/db.py`**
 
 ```python
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -296,7 +345,7 @@ async def get_session() -> AsyncSession:
         yield session
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add backend/app/config.py backend/app/db.py
@@ -318,7 +367,7 @@ git commit -m "feat(backend): add settings and async DB engine"
 - Create: `backend/app/models/pair.py`
 - Create: `backend/app/models/lock.py`
 
-- [ ] **Step 1: Create `backend/app/models/user.py`**
+- [x] **Step 1: Create `backend/app/models/user.py`**
 
 ```python
 from datetime import datetime
@@ -339,7 +388,7 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 ```
 
-- [ ] **Step 2: Create `backend/app/models/bacs.py`**
+- [x] **Step 2: Create `backend/app/models/bacs.py`**
 
 ```python
 from datetime import datetime
@@ -369,7 +418,7 @@ class BacsDevice(Base):
     )
 ```
 
-- [ ] **Step 3: Create `backend/app/models/health.py`**
+- [x] **Step 3: Create `backend/app/models/health.py`**
 
 ```python
 from datetime import datetime
@@ -400,7 +449,7 @@ class DeviceHealth(Base):
     consecutive_fail: Mapped[int] = mapped_column(Integer, default=0)
 ```
 
-- [ ] **Step 4: Create `backend/app/models/session.py`**
+- [x] **Step 4: Create `backend/app/models/session.py`**
 
 ```python
 from datetime import datetime
@@ -435,7 +484,7 @@ class TestSession(Base):
     finished_at: Mapped[datetime | None] = mapped_column(DateTime)
 ```
 
-- [ ] **Step 5: Create `backend/app/models/pair.py`**
+- [x] **Step 5: Create `backend/app/models/pair.py`**
 
 ```python
 from datetime import datetime
@@ -493,7 +542,7 @@ class PairLatestResult(Base):
     error_message: Mapped[str | None] = mapped_column(String(255))
 ```
 
-- [ ] **Step 6: Create `backend/app/models/lock.py`**
+- [x] **Step 6: Create `backend/app/models/lock.py`**
 
 ```python
 from datetime import datetime
@@ -515,7 +564,7 @@ class DeviceLock(Base):
     acquired_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 ```
 
-- [ ] **Step 7: Create `backend/app/models/__init__.py`**
+- [x] **Step 7: Create `backend/app/models/__init__.py`**
 
 ```python
 from app.models.bacs import BacsDevice
@@ -545,7 +594,7 @@ __all__ = [
 ]
 ```
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add backend/app/models/
@@ -562,7 +611,7 @@ git commit -m "feat(models): add ORM models for users, bacs, health, sessions, p
 - Create: `backend/alembic/script.py.mako`
 - Create: `backend/alembic/versions/0001_initial.py`
 
-- [ ] **Step 1: Initialize Alembic config (`backend/alembic.ini`)**
+- [x] **Step 1: Initialize Alembic config (`backend/alembic.ini`)**
 
 ```ini
 [alembic]
@@ -602,7 +651,7 @@ keys = generic
 format = %(levelname)-5.5s [%(name)s] %(message)s
 ```
 
-- [ ] **Step 2: Create `backend/alembic/env.py`**
+- [x] **Step 2: Create `backend/alembic/env.py`**
 
 ```python
 from logging.config import fileConfig
@@ -646,7 +695,7 @@ else:
     run_migrations_online()
 ```
 
-- [ ] **Step 3: Create `backend/alembic/script.py.mako`** (standard Alembic template)
+- [x] **Step 3: Create `backend/alembic/script.py.mako`** (standard Alembic template)
 
 ```mako
 """${message}
@@ -674,7 +723,7 @@ def downgrade() -> None:
     ${downgrades if downgrades else "pass"}
 ```
 
-- [ ] **Step 4: Start MySQL via compose and autogenerate migration**
+- [x] **Step 4: Start MySQL via compose and autogenerate migration**
 
 ```bash
 docker compose up -d mysql
@@ -683,7 +732,7 @@ cd backend && alembic revision --autogenerate -m "initial schema"
 
 Expected: a new file `backend/alembic/versions/<hash>_initial_schema.py` containing all tables. Rename file to `0001_initial.py` and revision id to `0001`.
 
-- [ ] **Step 5: Apply migration**
+- [x] **Step 5: Apply migration**
 
 ```bash
 cd backend && alembic upgrade head
@@ -691,7 +740,7 @@ cd backend && alembic upgrade head
 
 Expected: tables created. Verify with `docker exec -it $(docker compose ps -q mysql) mysql -uncvs -pncvs ncvs -e 'show tables'` — should list all 7 tables.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add backend/alembic.ini backend/alembic/env.py backend/alembic/script.py.mako \
@@ -711,7 +760,7 @@ git commit -m "feat(migrations): initial schema"
 - Create: `backend/app/protocol/messages.py`
 - Test: `backend/tests/unit/test_messages.py`
 
-- [ ] **Step 1: Write the failing test (`backend/tests/unit/test_messages.py`)**
+- [x] **Step 1: Write the failing test (`backend/tests/unit/test_messages.py`)**
 
 Test bytes derived from `BACS_Control.md` §1.2.1 (`SE_MA_Connect_REQ`: `01 10 05 00 00 00 12 00 00` ; `MA_SE_Connect_RPT` with alive=0xFF: `01 01 0D 00 00 00 92 08 00 FF 00 00 00 00 00 00 00`).
 
@@ -747,7 +796,7 @@ def test_parse_rejects_wrong_type():
         parse_connect_reply(bad)
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 ```bash
 cd backend && pytest tests/unit/test_messages.py -v
@@ -755,7 +804,7 @@ cd backend && pytest tests/unit/test_messages.py -v
 
 Expected: ImportError or AttributeError (module/symbols not defined).
 
-- [ ] **Step 3: Create `backend/app/protocol/constants.py`**
+- [x] **Step 3: Create `backend/app/protocol/constants.py`**
 
 ```python
 TCP_SE_MA = 0x1000
@@ -772,7 +821,7 @@ UDP_PORT = 7788
 TCP_PORT = 7788
 ```
 
-- [ ] **Step 4: Create `backend/app/protocol/messages.py`**
+- [x] **Step 4: Create `backend/app/protocol/messages.py`**
 
 ```python
 import struct
@@ -818,7 +867,7 @@ def parse_connect_reply(raw: bytes) -> ConnectReply:
     return ConnectReply(source_id=source_id, alive=alive)
 ```
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [x] **Step 5: Run tests to verify they pass**
 
 ```bash
 cd backend && pytest tests/unit/test_messages.py -v
@@ -826,7 +875,7 @@ cd backend && pytest tests/unit/test_messages.py -v
 
 Expected: 3 passed.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add backend/app/protocol/ backend/tests/unit/test_messages.py
@@ -843,7 +892,7 @@ git commit -m "feat(protocol): UDP Connect REQ/RPT pack/unpack with tests"
 - Create: `backend/tests/simulator/fake_bacs.py`
 - Test: `backend/tests/integration/test_udp_heartbeat.py`
 
-- [ ] **Step 1: Create fake BACS UDP simulator (`backend/tests/simulator/fake_bacs.py`)**
+- [x] **Step 1: Create fake BACS UDP simulator (`backend/tests/simulator/fake_bacs.py`)**
 
 ```python
 import asyncio
@@ -885,7 +934,7 @@ async def start_fake_bacs_udp(port: int = 0, alive: int = 0xFF):
     return transport, protocol, actual_port
 ```
 
-- [ ] **Step 2: Write the failing test (`backend/tests/integration/test_udp_heartbeat.py`)**
+- [x] **Step 2: Write the failing test (`backend/tests/integration/test_udp_heartbeat.py`)**
 
 ```python
 import asyncio
@@ -912,7 +961,7 @@ async def test_heartbeat_times_out_when_no_responder():
         await heartbeat("127.0.0.1", 1, timeout=0.2)  # nothing listening
 ```
 
-- [ ] **Step 3: Run tests to verify they fail**
+- [x] **Step 3: Run tests to verify they fail**
 
 ```bash
 cd backend && pytest tests/integration/test_udp_heartbeat.py -v
@@ -920,7 +969,7 @@ cd backend && pytest tests/integration/test_udp_heartbeat.py -v
 
 Expected: ImportError (`heartbeat` not defined).
 
-- [ ] **Step 4: Create `backend/app/protocol/udp_client.py`**
+- [x] **Step 4: Create `backend/app/protocol/udp_client.py`**
 
 ```python
 import asyncio
@@ -962,7 +1011,7 @@ async def heartbeat(host: str, port: int, *, timeout: float, node_id: int = 0) -
         transport.close()
 ```
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [x] **Step 5: Run tests to verify they pass**
 
 ```bash
 cd backend && pytest tests/integration/test_udp_heartbeat.py -v
@@ -970,7 +1019,7 @@ cd backend && pytest tests/integration/test_udp_heartbeat.py -v
 
 Expected: 2 passed.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add backend/app/protocol/udp_client.py backend/tests/simulator/ \
@@ -985,7 +1034,7 @@ git commit -m "feat(protocol): UDP heartbeat client + fake BACS simulator"
 **Files:**
 - Create: `backend/app/protocol/crosstest_proto.py`
 
-- [ ] **Step 1: Create `backend/app/protocol/crosstest_proto.py`**
+- [x] **Step 1: Create `backend/app/protocol/crosstest_proto.py`**
 
 The real BACS↔BACS exchange is TBD per spec §5. The interface and stub below are intentionally placeholder: stub returns `ok` after a short sleep so the scheduler can be developed and tested before the real protocol lands.
 
@@ -1035,7 +1084,7 @@ class StubCrossTestProtocol:
         return PairResult(ok=True)
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add backend/app/protocol/crosstest_proto.py
@@ -1053,7 +1102,7 @@ git commit -m "feat(protocol): CrossTestProtocol interface and stub implementati
 - Create: `backend/app/repositories/device_repo.py`
 - Create: `backend/app/repositories/health_repo.py`
 
-- [ ] **Step 1: Create `backend/app/repositories/device_repo.py`**
+- [x] **Step 1: Create `backend/app/repositories/device_repo.py`**
 
 ```python
 from sqlalchemy import select
@@ -1079,7 +1128,7 @@ async def get_by_ids(session: AsyncSession, ids: list[int]) -> list[BacsDevice]:
     return list(result.scalars().all())
 ```
 
-- [ ] **Step 2: Create `backend/app/repositories/health_repo.py`**
+- [x] **Step 2: Create `backend/app/repositories/health_repo.py`**
 
 ```python
 from datetime import datetime
@@ -1128,7 +1177,7 @@ async def list_all(session: AsyncSession) -> list[DeviceHealth]:
     return list(result.scalars().all())
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add backend/app/repositories/
@@ -1144,7 +1193,7 @@ git commit -m "feat(repo): device and health repositories"
 - Create: `backend/app/services/health_service.py`
 - Test: `backend/tests/integration/test_health_flow.py`
 
-- [ ] **Step 1: Write the failing test (`backend/tests/integration/test_health_flow.py`)**
+- [x] **Step 1: Write the failing test (`backend/tests/integration/test_health_flow.py`)**
 
 ```python
 import asyncio
@@ -1189,7 +1238,7 @@ async def test_health_check_marks_unreachable_device_fail(db_session):
     assert health.status == HealthStatus.fail
 ```
 
-- [ ] **Step 2: Add test DB fixture in `backend/tests/conftest.py`**
+- [x] **Step 2: Add test DB fixture in `backend/tests/conftest.py`**
 
 ```python
 import asyncio
@@ -1237,7 +1286,7 @@ async def db_session(engine):
 
 Note: Run `docker exec -it $(docker compose ps -q mysql) mysql -uroot -proot -e 'CREATE DATABASE IF NOT EXISTS ncvs_test'` once before running tests.
 
-- [ ] **Step 3: Run tests to verify they fail**
+- [x] **Step 3: Run tests to verify they fail**
 
 ```bash
 cd backend && pytest tests/integration/test_health_flow.py -v
@@ -1245,7 +1294,7 @@ cd backend && pytest tests/integration/test_health_flow.py -v
 
 Expected: ImportError on `HealthCheckService`.
 
-- [ ] **Step 4: Create `backend/app/services/health_service.py`**
+- [x] **Step 4: Create `backend/app/services/health_service.py`**
 
 ```python
 import asyncio
@@ -1286,7 +1335,7 @@ class HealthCheckService:
         await session.commit()
 ```
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [x] **Step 5: Run tests to verify they pass**
 
 ```bash
 cd backend && pytest tests/integration/test_health_flow.py -v
@@ -1294,7 +1343,7 @@ cd backend && pytest tests/integration/test_health_flow.py -v
 
 Expected: 2 passed.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add backend/app/services/health_service.py backend/tests/conftest.py \
@@ -1313,7 +1362,7 @@ git commit -m "feat(health): periodic UDP heartbeat check with TDD coverage"
 - Create: `backend/app/services/crosstest/device_locker.py`
 - Test: `backend/tests/unit/test_device_locker.py`
 
-- [ ] **Step 1: Write the failing test (`backend/tests/unit/test_device_locker.py`)**
+- [x] **Step 1: Write the failing test (`backend/tests/unit/test_device_locker.py`)**
 
 ```python
 import asyncio
@@ -1361,7 +1410,7 @@ async def test_acquire_pair_always_orders_lock_acquisition():
     assert sum(results) == 1
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 ```bash
 cd backend && pytest tests/unit/test_device_locker.py -v
@@ -1369,7 +1418,7 @@ cd backend && pytest tests/unit/test_device_locker.py -v
 
 Expected: ImportError.
 
-- [ ] **Step 3: Create `backend/app/services/crosstest/device_locker.py`**
+- [x] **Step 3: Create `backend/app/services/crosstest/device_locker.py`**
 
 ```python
 import asyncio
@@ -1428,7 +1477,7 @@ class DeviceLocker:
         return {bid for bid, lock in self._locks.items() if lock.locked()}
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 ```bash
 cd backend && pytest tests/unit/test_device_locker.py -v
@@ -1436,7 +1485,7 @@ cd backend && pytest tests/unit/test_device_locker.py -v
 
 Expected: 4 passed.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add backend/app/services/crosstest/device_locker.py \
@@ -1454,7 +1503,7 @@ git commit -m "feat(crosstest): DeviceLocker with deadlock-free pair acquisition
 - Create: `backend/app/repositories/pair_repo.py`
 - Create: `backend/app/repositories/lock_repo.py`
 
-- [ ] **Step 1: Create `backend/app/repositories/session_repo.py`**
+- [x] **Step 1: Create `backend/app/repositories/session_repo.py`**
 
 ```python
 from datetime import datetime
@@ -1521,7 +1570,7 @@ async def increment_counters(
         obj.fail_pairs += 1
 ```
 
-- [ ] **Step 2: Create `backend/app/repositories/pair_repo.py`**
+- [x] **Step 2: Create `backend/app/repositories/pair_repo.py`**
 
 ```python
 from datetime import datetime
@@ -1620,7 +1669,7 @@ async def upsert_latest(
     await session.flush()
 ```
 
-- [ ] **Step 3: Create `backend/app/repositories/lock_repo.py`**
+- [x] **Step 3: Create `backend/app/repositories/lock_repo.py`**
 
 ```python
 from sqlalchemy import delete
@@ -1644,7 +1693,7 @@ async def clear_all(session: AsyncSession) -> None:
     await session.flush()
 ```
 
-- [ ] **Step 4: Create `backend/app/repositories/__init__.py`**
+- [x] **Step 4: Create `backend/app/repositories/__init__.py`**
 
 ```python
 from app.repositories import device_repo, health_repo, lock_repo, pair_repo, session_repo
@@ -1652,7 +1701,7 @@ from app.repositories import device_repo, health_repo, lock_repo, pair_repo, ses
 __all__ = ["device_repo", "health_repo", "lock_repo", "pair_repo", "session_repo"]
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add backend/app/repositories/
@@ -1667,7 +1716,7 @@ git commit -m "feat(repo): session, pair, lock repositories"
 - Create: `backend/app/services/crosstest/scheduler.py` (partial — just pick logic)
 - Test: `backend/tests/unit/test_scheduler_pick.py`
 
-- [ ] **Step 1: Write the failing test (`backend/tests/unit/test_scheduler_pick.py`)**
+- [x] **Step 1: Write the failing test (`backend/tests/unit/test_scheduler_pick.py`)**
 
 ```python
 from dataclasses import dataclass
@@ -1701,7 +1750,7 @@ def test_returns_none_when_all_blocked():
     assert chosen is None
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 ```bash
 cd backend && pytest tests/unit/test_scheduler_pick.py -v
@@ -1709,7 +1758,7 @@ cd backend && pytest tests/unit/test_scheduler_pick.py -v
 
 Expected: ImportError.
 
-- [ ] **Step 3: Create `backend/app/services/crosstest/scheduler.py` (pick fn only)**
+- [x] **Step 3: Create `backend/app/services/crosstest/scheduler.py` (pick fn only)**
 
 ```python
 from typing import Protocol
@@ -1732,7 +1781,7 @@ def pick_next_dispatchable(pairs, locked_devices: set[int]):
     return None
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 ```bash
 cd backend && pytest tests/unit/test_scheduler_pick.py -v
@@ -1740,7 +1789,7 @@ cd backend && pytest tests/unit/test_scheduler_pick.py -v
 
 Expected: 3 passed.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add backend/app/services/crosstest/scheduler.py \
@@ -1756,7 +1805,7 @@ git commit -m "feat(crosstest): pair-dispatch pick logic with TDD"
 - Modify: `backend/app/services/crosstest/scheduler.py`
 - Create: `backend/app/services/crosstest/runner.py`
 
-- [ ] **Step 1: Create `backend/app/services/crosstest/runner.py`**
+- [x] **Step 1: Create `backend/app/services/crosstest/runner.py`**
 
 ```python
 import asyncio
@@ -1827,7 +1876,7 @@ class PairRunner:
         return result
 ```
 
-- [ ] **Step 2: Replace `backend/app/services/crosstest/scheduler.py` with full impl**
+- [x] **Step 2: Replace `backend/app/services/crosstest/scheduler.py` with full impl**
 
 ```python
 import asyncio
@@ -1960,7 +2009,7 @@ class CrossTestScheduler:
         logger.info("crosstest.session.complete session={}", session_id)
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add backend/app/services/crosstest/scheduler.py \
@@ -1976,7 +2025,7 @@ git commit -m "feat(crosstest): scheduler dispatch loop and pair runner"
 - Create: `backend/app/services/session_service.py`
 - Test: `backend/tests/integration/test_crosstest_flow.py`
 
-- [ ] **Step 1: Create `backend/app/services/session_service.py`**
+- [x] **Step 1: Create `backend/app/services/session_service.py`**
 
 ```python
 from itertools import permutations
@@ -2009,7 +2058,7 @@ async def cancel_session(session: AsyncSession, session_id: int) -> None:
     await session.commit()
 ```
 
-- [ ] **Step 2: Write the failing test (`backend/tests/integration/test_crosstest_flow.py`)**
+- [x] **Step 2: Write the failing test (`backend/tests/integration/test_crosstest_flow.py`)**
 
 ```python
 import asyncio
@@ -2067,7 +2116,7 @@ async def test_full_crosstest_run_completes_all_pairs(engine, db_session):
         assert obj.ok_pairs == 6
 ```
 
-- [ ] **Step 3: Run test to verify it passes**
+- [x] **Step 3: Run test to verify it passes**
 
 ```bash
 cd backend && pytest tests/integration/test_crosstest_flow.py -v
@@ -2075,7 +2124,7 @@ cd backend && pytest tests/integration/test_crosstest_flow.py -v
 
 Expected: 1 passed (may take ~5s due to 30s/300x sim sleep).
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add backend/app/services/session_service.py \
@@ -2090,7 +2139,7 @@ git commit -m "feat(crosstest): session service and end-to-end integration test"
 **Files:**
 - Test: `backend/tests/integration/test_concurrent_sessions.py`
 
-- [ ] **Step 1: Write the test**
+- [x] **Step 1: Write the test**
 
 ```python
 import asyncio
@@ -2167,7 +2216,7 @@ async def test_overlapping_sessions_never_share_device_simultaneously(engine, db
     await scheduler.stop()
 ```
 
-- [ ] **Step 2: Run and verify pass**
+- [x] **Step 2: Run and verify pass**
 
 ```bash
 cd backend && pytest tests/integration/test_concurrent_sessions.py -v
@@ -2175,7 +2224,7 @@ cd backend && pytest tests/integration/test_concurrent_sessions.py -v
 
 Expected: PASS. (If fails, investigate scheduler — invariant violation indicates lock race.)
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add backend/tests/integration/test_concurrent_sessions.py
