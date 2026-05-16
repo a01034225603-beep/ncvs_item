@@ -7,41 +7,54 @@ export function Matrix({ devices, cells }: Props) {
   for (const c of cells) lookup.set(`${c.src_bacs_id}-${c.dst_bacs_id}`, c);
 
   return (
-    <table cellPadding={4} style={{ borderCollapse: "collapse" }}>
-      <thead>
-        <tr>
-          <th></th>
-          {devices.map((d) => (
-            <th key={d.id} style={{ writingMode: "vertical-rl", fontSize: 11 }}>
-              {d.name}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {devices.map((src) => (
-          <tr key={src.id}>
-            <td style={{ fontSize: 11, fontWeight: 600 }}>{src.name}</td>
-            {devices.map((dst) => {
-              if (src.id === dst.id)
-                return <td key={dst.id} style={{ background: "#222" }} />;
-              const cell = lookup.get(`${src.id}-${dst.id}`);
-              const color = cell
-                ? cell.status === "ok"
-                  ? "#2ecc71"
-                  : "#e74c3c"
-                : "#bdc3c7";
-              return (
-                <td
-                  key={dst.id}
-                  title={cell?.error_message ?? cell?.tested_at ?? "no data"}
-                  style={{ background: color, width: 16, height: 16 }}
-                />
-              );
-            })}
+    <div className="inline-block rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <table className="border-collapse">
+        <thead>
+          <tr>
+            <th></th>
+            {devices.map((d) => (
+              <th
+                key={d.id}
+                className="px-1 align-bottom text-[11px] font-medium text-slate-600 [writing-mode:vertical-rl]"
+              >
+                {d.name}
+              </th>
+            ))}
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {devices.map((src) => (
+            <tr key={src.id}>
+              <td className="pr-2 text-[11px] font-semibold text-slate-700">
+                {src.name}
+              </td>
+              {devices.map((dst) => {
+                if (src.id === dst.id) {
+                  return (
+                    <td
+                      key={dst.id}
+                      className="h-5 w-5 bg-slate-800"
+                    />
+                  );
+                }
+                const cell = lookup.get(`${src.id}-${dst.id}`);
+                const cls = cell
+                  ? cell.status === "ok"
+                    ? "bg-emerald-500"
+                    : "bg-red-500"
+                  : "bg-slate-200";
+                return (
+                  <td
+                    key={dst.id}
+                    title={cell?.error_message ?? cell?.tested_at ?? "no data"}
+                    className={`h-5 w-5 ${cls}`}
+                  />
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

@@ -29,13 +29,26 @@ export default function TestPage({ params }: { params: Promise<{ id: string }> }
     };
   }, [id]);
 
-  if (!session) return <main>로딩…</main>;
+  if (!session) {
+    return (
+      <main className="mx-auto max-w-3xl px-6 py-16 text-center text-slate-500">
+        로딩…
+      </main>
+    );
+  }
   return (
-    <main>
-      <h1>Test Session #{session.id}</h1>
-      <TestProgress s={session} />
+    <main className="mx-auto max-w-3xl px-6 py-8">
+      <h1 className="text-2xl font-semibold tracking-tight">
+        Test Session #{session.id}
+      </h1>
+      <div className="mt-6">
+        <TestProgress s={session} />
+      </div>
       {session.status === "running" && (
-        <button onClick={() => api.cancelSession(id)} style={{ marginTop: 12 }}>
+        <button
+          onClick={() => api.cancelSession(id)}
+          className="mt-4 rounded-md border border-red-300 bg-white px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50"
+        >
           취소
         </button>
       )}

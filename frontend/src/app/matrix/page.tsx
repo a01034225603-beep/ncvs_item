@@ -18,12 +18,21 @@ export default function MatrixPage() {
   }, []);
 
   return (
-    <main>
-      <h1>Cross-test 결과 매트릭스</h1>
-      <p style={{ fontSize: 12, color: "#666" }}>
-        행 = 송신(src), 열 = 수신(dst). 녹색 ok / 빨강 fail / 회색 미테스트.
+    <main className="mx-auto max-w-6xl px-6 py-8">
+      <h1 className="text-2xl font-semibold tracking-tight">
+        Cross-test 결과 매트릭스
+      </h1>
+      <p className="mt-1 text-sm text-slate-500">
+        행 = 송신(src), 열 = 수신(dst).{" "}
+        <span className="inline-block h-2 w-2 rounded-sm bg-emerald-500 align-middle" /> ok
+        <span className="mx-1">·</span>
+        <span className="inline-block h-2 w-2 rounded-sm bg-red-500 align-middle" /> fail
+        <span className="mx-1">·</span>
+        <span className="inline-block h-2 w-2 rounded-sm bg-slate-200 align-middle" /> 미테스트
       </p>
-      <Matrix devices={devices} cells={cells} />
+      <div className="mt-6 overflow-auto">
+        <Matrix devices={devices} cells={cells} />
+      </div>
     </main>
   );
 }
