@@ -16,14 +16,25 @@
 ## Implementation Status (updated 2026-05-16)
 
 **Branch:** `feature/bacs-monitoring`  
-**Phases 0–4 complete (Tasks 0–14).** 16/16 tests passing. All DB schema applied via Alembic to local MariaDB 11.4 (`ncvs`, `ncvs_test`). Remaining: Phases 5–7 (Tasks 15–24): auth + API endpoints + seed CLI + Next.js frontend + Dockerfiles.
+**All phases complete (Tasks 0??4).** Backend: 30/30 tests passing. Frontend: dev-server smoke (`/`, `/login`, `/devices`, `/tests/[id]`, `/matrix`) all return HTTP 200. Docker compose smoke deferred (no local Docker).
 
 Commit map (most recent first):
 
 | Task | Commit | Description |
 |---|---|---|
+| 24 | d18e535 | feat(deploy): docker-compose images for backend and frontend |
+| 23 | afd1410 | feat(frontend): cross-test result matrix view |
+| 22 | 3f4bfdb | feat(frontend): test session progress page with polling |
+| 21 | fbb3629 | feat(frontend): devices dashboard with health and test trigger |
+| 20 | 688c24a | feat(frontend): login page |
+| 19 | f5f5129 | chore(frontend): upgrade Next.js to 16.2.6 to clear CVEs |
+| 19 | f7b4189 | feat(frontend): scaffold Next.js + API client |
+| 18 | 051b8a7 | feat(cli): seed admin user and demo BACS devices |
+| 17 | d0b6e67 | feat(api): device, health, tests, matrix endpoints |
+| 16 | 5b3514c | feat(api): FastAPI app with auth and lifespan-managed services |
+| 15 | f7b17a1 | feat(security): password hashing and JWT helpers |
 | 14 | 7c3edc0 | test(crosstest): verify device-lock invariant across overlapping sessions |
-| 13 | 738db37 | feat(crosstest): session service and end-to-end integration test |
+| 13 | 738df37 | feat(crosstest): session service and end-to-end integration test |
 | 8  | a79da29 | feat(health): periodic UDP heartbeat check with TDD coverage |
 | 3  | 8b8ed56 | feat(migrations): initial schema |
 | 12 | 38750e9 | feat(crosstest): scheduler dispatch loop and pair runner |
@@ -50,14 +61,24 @@ cvs`. Backend tree under `backend/`.
 - **Known deviations from plan (intentional):**
   - Task 5 no-responder test accepts `(asyncio.TimeoutError, ConnectionResetError, OSError)` because Windows surfaces ICMP port-unreachable through `error_received`, not as a timeout.
   - Task 8 `conftest.py` uses pytest-asyncio `loop_scope="session"` with `asyncio_default_fixture_loop_scope = "session"` and `asyncio_default_test_loop_scope = "session"` added to `pyproject.toml [tool.pytest.ini_options]`. Required because pytest-asyncio 1.3+ otherwise gives "Task got Future attached to a different loop" on session-scoped DB engine.
-  - Task 14 invariant assertion uses `len(set(devices_in_flight)) == len(devices_in_flight)` instead of the plan's `len(devices_in_flight) == 2 * (len(run_a) + len(run_b))` — clearer and equivalent.
-- **Known warnings (non-blocking):** 41× `datetime.utcnow()` deprecation, `passlib` unmaintained (will affect Task 15 when implemented), `PytestCollectionWarning` on `TestSession`/`TestSessionPair` model names.
+  - Task 14 invariant assertion uses `len(set(devices_in_flight)) == len(devices_in_flight)` instead of the plan's `len(devices_in_flight) == 2 * (len(run_a) + len(run_b))` ??clearer and equivalent.
+- **Known warnings (non-blocking):** 41횞 `datetime.utcnow()` deprecation, `PytestCollectionWarning` on `TestSession`/`TestSessionPair` model names, JWT `InsecureKeyLengthWarning` from the demo `.env` secret.
+- **Phase 5?? deviations from plan (intentional):**
+  - Task 15 replaced `passlib[bcrypt]` with the `bcrypt` library directly. `passlib` 1.7.4 is incompatible with `bcrypt` 5.0 ??its version-probe path raises `ValueError: password cannot be longer than 72 bytes` on any password. `passlib` is effectively unmaintained.
+  - Task 16 added an ASGITransport integration test instead of the plan's manual `uvicorn` curl smoke, so the auth path has automated regression coverage.
+  - Task 17 swapped the `session.get(BacsDevice, 1)` idempotency probe in the seed for a `SELECT ??LIMIT 1` (autoincrement id 1 isn't guaranteed).
+  - Task 19 added `src/app/page.tsx` (placeholder home) so the dev-server smoke returns 200, and added `frontend/.gitignore`. Next.js bumped from 14.2.3 ??16.2.6 + `postcss` override to `^8.5.10` to clear all `npm audit` advisories.
+  - Task 22 awaits `params` via `React.use()` because Next 16 App Router exposes `params` as a Promise.
+  - Task 24 uses `npm ci` instead of `npm install` in the frontend Dockerfile and copies `package-lock.json` (reproducible build); added `.dockerignore` for both images. Compose smoke (`docker compose up`) deferred ??no local Docker.
 
 ### Next steps
 
-1. Phase 5 (Tasks 15–18): security helpers, FastAPI app + auth, device/health/test/matrix endpoints, seed CLI.
-2. Phase 6 (Tasks 19–23): Next.js frontend (login, devices dashboard, test progress, matrix).
-3. Phase 7 (Task 24): Dockerfiles + compose smoke (deprioritized since Docker is unavailable locally — write the files anyway, defer execution).
+All planned work is complete. Possible follow-ups:
+
+1. Docker compose smoke on a host with Docker installed (Task 24 Step 3).
+2. End-to-end browser smoke: seed admin, log in, trigger a cross-test, watch progress + matrix update.
+3. Replace `StubCrossTestProtocol` with the real BACS cross-test protocol once 짠5 is finalized (only `backend/app/protocol/crosstest_proto.py` should change).
+4. Tighten warnings: migrate `datetime.utcnow()` ??`datetime.now(timezone.utc)`, supply a ??2-byte `JWT_SECRET` in non-dev environments.
 
 ---
 
@@ -67,96 +88,96 @@ cvs`. Backend tree under `backend/`.
 
 ```
 backend/
-├─ pyproject.toml                 # uv + pytest + ruff config
-├─ alembic.ini
-├─ alembic/
-│  ├─ env.py
-│  └─ versions/                   # migrations
-├─ app/
-│  ├─ __init__.py
-│  ├─ main.py                     # FastAPI app, lifespan
-│  ├─ config.py                   # pydantic-settings (.env)
-│  ├─ db.py                       # async engine, session factory
-│  ├─ deps.py                     # FastAPI dependencies (db, current_user)
-│  ├─ security.py                 # bcrypt, JWT encode/decode
-│  ├─ logging_setup.py
-│  ├─ models/
-│  │  ├─ __init__.py
-│  │  ├─ user.py
-│  │  ├─ bacs.py                  # BacsDevice
-│  │  ├─ health.py                # DeviceHealth
-│  │  ├─ session.py               # TestSession
-│  │  ├─ pair.py                  # TestSessionPair, PairLatestResult
-│  │  └─ lock.py                  # DeviceLock
-│  ├─ schemas/                    # Pydantic DTOs
-│  │  ├─ auth.py
-│  │  ├─ device.py
-│  │  ├─ health.py
-│  │  ├─ session.py
-│  │  └─ pair.py
-│  ├─ repositories/               # async SQLAlchemy queries
-│  │  ├─ user_repo.py
-│  │  ├─ device_repo.py
-│  │  ├─ health_repo.py
-│  │  ├─ session_repo.py
-│  │  ├─ pair_repo.py
-│  │  └─ lock_repo.py
-│  ├─ api/
-│  │  ├─ auth.py
-│  │  ├─ devices.py
-│  │  ├─ health.py
-│  │  ├─ tests.py
-│  │  └─ matrix.py
-│  ├─ services/
-│  │  ├─ health_service.py
-│  │  ├─ session_service.py
-│  │  └─ crosstest/
-│  │     ├─ scheduler.py
-│  │     ├─ device_locker.py
-│  │     └─ runner.py
-│  └─ protocol/
-│     ├─ constants.py             # Type/MsgType constants
-│     ├─ messages.py              # pack/unpack helpers
-│     ├─ udp_client.py            # Heartbeat
-│     ├─ tcp_client.py            # TCP control (skeleton)
-│     └─ crosstest_proto.py       # Stub impl behind interface (TBD)
-└─ tests/
-   ├─ conftest.py                 # DB fixtures, simulator fixture
-   ├─ unit/
-   │  ├─ test_messages.py
-   │  ├─ test_device_locker.py
-   │  ├─ test_scheduler_pick.py
-   │  └─ test_security.py
-   ├─ integration/
-   │  ├─ test_health_flow.py
-   │  ├─ test_crosstest_flow.py
-   │  └─ test_concurrent_sessions.py
-   └─ simulator/
-      └─ fake_bacs.py             # asyncio UDP/TCP echo server
+?쒋? pyproject.toml                 # uv + pytest + ruff config
+?쒋? alembic.ini
+?쒋? alembic/
+?? ?쒋? env.py
+?? ?붴? versions/                   # migrations
+?쒋? app/
+?? ?쒋? __init__.py
+?? ?쒋? main.py                     # FastAPI app, lifespan
+?? ?쒋? config.py                   # pydantic-settings (.env)
+?? ?쒋? db.py                       # async engine, session factory
+?? ?쒋? deps.py                     # FastAPI dependencies (db, current_user)
+?? ?쒋? security.py                 # bcrypt, JWT encode/decode
+?? ?쒋? logging_setup.py
+?? ?쒋? models/
+?? ?? ?쒋? __init__.py
+?? ?? ?쒋? user.py
+?? ?? ?쒋? bacs.py                  # BacsDevice
+?? ?? ?쒋? health.py                # DeviceHealth
+?? ?? ?쒋? session.py               # TestSession
+?? ?? ?쒋? pair.py                  # TestSessionPair, PairLatestResult
+?? ?? ?붴? lock.py                  # DeviceLock
+?? ?쒋? schemas/                    # Pydantic DTOs
+?? ?? ?쒋? auth.py
+?? ?? ?쒋? device.py
+?? ?? ?쒋? health.py
+?? ?? ?쒋? session.py
+?? ?? ?붴? pair.py
+?? ?쒋? repositories/               # async SQLAlchemy queries
+?? ?? ?쒋? user_repo.py
+?? ?? ?쒋? device_repo.py
+?? ?? ?쒋? health_repo.py
+?? ?? ?쒋? session_repo.py
+?? ?? ?쒋? pair_repo.py
+?? ?? ?붴? lock_repo.py
+?? ?쒋? api/
+?? ?? ?쒋? auth.py
+?? ?? ?쒋? devices.py
+?? ?? ?쒋? health.py
+?? ?? ?쒋? tests.py
+?? ?? ?붴? matrix.py
+?? ?쒋? services/
+?? ?? ?쒋? health_service.py
+?? ?? ?쒋? session_service.py
+?? ?? ?붴? crosstest/
+?? ??    ?쒋? scheduler.py
+?? ??    ?쒋? device_locker.py
+?? ??    ?붴? runner.py
+?? ?붴? protocol/
+??    ?쒋? constants.py             # Type/MsgType constants
+??    ?쒋? messages.py              # pack/unpack helpers
+??    ?쒋? udp_client.py            # Heartbeat
+??    ?쒋? tcp_client.py            # TCP control (skeleton)
+??    ?붴? crosstest_proto.py       # Stub impl behind interface (TBD)
+?붴? tests/
+   ?쒋? conftest.py                 # DB fixtures, simulator fixture
+   ?쒋? unit/
+   ?? ?쒋? test_messages.py
+   ?? ?쒋? test_device_locker.py
+   ?? ?쒋? test_scheduler_pick.py
+   ?? ?붴? test_security.py
+   ?쒋? integration/
+   ?? ?쒋? test_health_flow.py
+   ?? ?쒋? test_crosstest_flow.py
+   ?? ?붴? test_concurrent_sessions.py
+   ?붴? simulator/
+      ?붴? fake_bacs.py             # asyncio UDP/TCP echo server
 ```
 
 ### Frontend (`frontend/`)
 
 ```
 frontend/
-├─ package.json
-├─ next.config.mjs
-├─ tsconfig.json
-├─ src/
-│  ├─ app/
-│  │  ├─ layout.tsx
-│  │  ├─ login/page.tsx
-│  │  ├─ devices/page.tsx          # main dashboard
-│  │  ├─ tests/[id]/page.tsx       # progress page
-│  │  └─ matrix/page.tsx
-│  ├─ lib/
-│  │  ├─ api.ts                    # fetch wrappers
-│  │  └─ types.ts
-│  └─ components/
-│     ├─ DeviceTable.tsx
-│     ├─ HealthBadge.tsx
-│     ├─ TestProgress.tsx
-│     └─ Matrix.tsx
+?쒋? package.json
+?쒋? next.config.mjs
+?쒋? tsconfig.json
+?쒋? src/
+?? ?쒋? app/
+?? ?? ?쒋? layout.tsx
+?? ?? ?쒋? login/page.tsx
+?? ?? ?쒋? devices/page.tsx          # main dashboard
+?? ?? ?쒋? tests/[id]/page.tsx       # progress page
+?? ?? ?붴? matrix/page.tsx
+?? ?쒋? lib/
+?? ?? ?쒋? api.ts                    # fetch wrappers
+?? ?? ?붴? types.ts
+?? ?붴? components/
+??    ?쒋? DeviceTable.tsx
+??    ?쒋? HealthBadge.tsx
+??    ?쒋? TestProgress.tsx
+??    ?붴? Matrix.tsx
 ```
 
 ### Root
@@ -738,7 +759,7 @@ Expected: a new file `backend/alembic/versions/<hash>_initial_schema.py` contain
 cd backend && alembic upgrade head
 ```
 
-Expected: tables created. Verify with `docker exec -it $(docker compose ps -q mysql) mysql -uncvs -pncvs ncvs -e 'show tables'` — should list all 7 tables.
+Expected: tables created. Verify with `docker exec -it $(docker compose ps -q mysql) mysql -uncvs -pncvs ncvs -e 'show tables'` ??should list all 7 tables.
 
 - [x] **Step 6: Commit**
 
@@ -762,7 +783,7 @@ git commit -m "feat(migrations): initial schema"
 
 - [x] **Step 1: Write the failing test (`backend/tests/unit/test_messages.py`)**
 
-Test bytes derived from `BACS_Control.md` §1.2.1 (`SE_MA_Connect_REQ`: `01 10 05 00 00 00 12 00 00` ; `MA_SE_Connect_RPT` with alive=0xFF: `01 01 0D 00 00 00 92 08 00 FF 00 00 00 00 00 00 00`).
+Test bytes derived from `BACS_Control.md` 짠1.2.1 (`SE_MA_Connect_REQ`: `01 10 05 00 00 00 12 00 00` ; `MA_SE_Connect_RPT` with alive=0xFF: `01 01 0D 00 00 00 92 08 00 FF 00 00 00 00 00 00 00`).
 
 ```python
 import pytest
@@ -1036,7 +1057,7 @@ git commit -m "feat(protocol): UDP heartbeat client + fake BACS simulator"
 
 - [x] **Step 1: Create `backend/app/protocol/crosstest_proto.py`**
 
-The real BACS↔BACS exchange is TBD per spec §5. The interface and stub below are intentionally placeholder: stub returns `ok` after a short sleep so the scheduler can be developed and tested before the real protocol lands.
+The real BACS?볿ACS exchange is TBD per spec 짠5. The interface and stub below are intentionally placeholder: stub returns `ok` after a short sleep so the scheduler can be developed and tested before the real protocol lands.
 
 ```python
 import asyncio
@@ -1060,7 +1081,7 @@ class CrossTestProtocol(Protocol):
 
 
 class StubCrossTestProtocol:
-    """Placeholder until BACS↔BACS call-test message format is finalized.
+    """Placeholder until BACS?볿ACS call-test message format is finalized.
 
     Returns ok after 30s, fail after 60s, randomly weighted. Used in dev/tests
     to exercise the scheduler. Real implementation replaces this class.
@@ -1449,7 +1470,7 @@ class DeviceLocker:
 
     async def try_acquire_pair(self, a: int, b: int, *, session_id: int) -> bool:
         first, second = sorted([a, b])
-        # Single global section per attempt — guarantees no two callers
+        # Single global section per attempt ??guarantees no two callers
         # interleave their lock checks and both succeed.
         async with self._global_lock:
             l1, l2 = self._lock_for(first), self._lock_for(second)
@@ -1713,7 +1734,7 @@ git commit -m "feat(repo): session, pair, lock repositories"
 ### Task 11: Scheduler dispatch logic (`pick_next_dispatchable`)
 
 **Files:**
-- Create: `backend/app/services/crosstest/scheduler.py` (partial — just pick logic)
+- Create: `backend/app/services/crosstest/scheduler.py` (partial ??just pick logic)
 - Test: `backend/tests/unit/test_scheduler_pick.py`
 
 - [x] **Step 1: Write the failing test (`backend/tests/unit/test_scheduler_pick.py`)**
@@ -2222,7 +2243,7 @@ async def test_overlapping_sessions_never_share_device_simultaneously(engine, db
 cd backend && pytest tests/integration/test_concurrent_sessions.py -v
 ```
 
-Expected: PASS. (If fails, investigate scheduler — invariant violation indicates lock race.)
+Expected: PASS. (If fails, investigate scheduler ??invariant violation indicates lock race.)
 
 - [x] **Step 3: Commit**
 
@@ -2242,7 +2263,7 @@ git commit -m "test(crosstest): verify device-lock invariant across overlapping 
 - Create: `backend/app/repositories/user_repo.py`
 - Test: `backend/tests/unit/test_security.py`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 from datetime import timedelta
@@ -2262,7 +2283,7 @@ def test_jwt_roundtrip():
     assert payload["sub"] == "42"
 ```
 
-- [ ] **Step 2: Create `backend/app/security.py`**
+- [x] **Step 2: Create `backend/app/security.py`**
 
 ```python
 from datetime import datetime, timedelta, timezone
@@ -2295,7 +2316,7 @@ def decode_access_token(token: str) -> dict:
     return jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
 ```
 
-- [ ] **Step 3: Create `backend/app/repositories/user_repo.py`**
+- [x] **Step 3: Create `backend/app/repositories/user_repo.py`**
 
 ```python
 from sqlalchemy import select
@@ -2316,7 +2337,7 @@ async def create(session: AsyncSession, *, username: str, password_hash: str) ->
     return obj
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 ```bash
 cd backend && pytest tests/unit/test_security.py -v
@@ -2324,7 +2345,7 @@ cd backend && pytest tests/unit/test_security.py -v
 
 Expected: 2 passed.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add backend/app/security.py backend/app/repositories/user_repo.py \
@@ -2343,7 +2364,7 @@ git commit -m "feat(security): password hashing and JWT helpers"
 - Create: `backend/app/api/auth.py`
 - Create: `backend/app/main.py`
 
-- [ ] **Step 1: Create `backend/app/schemas/auth.py`**
+- [x] **Step 1: Create `backend/app/schemas/auth.py`**
 
 ```python
 from pydantic import BaseModel
@@ -2359,7 +2380,7 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 ```
 
-- [ ] **Step 2: Create `backend/app/deps.py`**
+- [x] **Step 2: Create `backend/app/deps.py`**
 
 ```python
 from fastapi import Depends, HTTPException, status
@@ -2394,7 +2415,7 @@ async def get_current_user(
     return user
 ```
 
-- [ ] **Step 3: Create `backend/app/api/auth.py`**
+- [x] **Step 3: Create `backend/app/api/auth.py`**
 
 ```python
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -2416,7 +2437,7 @@ async def login(body: LoginRequest, session: AsyncSession = Depends(get_session)
     return TokenResponse(access_token=create_access_token(subject=user.username))
 ```
 
-- [ ] **Step 4: Create `backend/app/main.py`**
+- [x] **Step 4: Create `backend/app/main.py`**
 
 ```python
 import asyncio
@@ -2501,7 +2522,7 @@ async def healthz():
     return {"status": "ok"}
 ```
 
-- [ ] **Step 5: Smoke run**
+- [x] **Step 5: Smoke run**
 
 ```bash
 cd backend && uvicorn app.main:app --reload --port 8000
@@ -2514,7 +2535,7 @@ curl http://localhost:8000/healthz
 
 Expected: `{"status":"ok"}`. Stop the server (Ctrl-C).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add backend/app/deps.py backend/app/schemas/auth.py \
@@ -2537,7 +2558,7 @@ git commit -m "feat(api): FastAPI app with auth and lifespan-managed services"
 - Create: `backend/app/api/matrix.py`
 - Modify: `backend/app/main.py:48` (add new routers)
 
-- [ ] **Step 1: Create `backend/app/schemas/device.py`**
+- [x] **Step 1: Create `backend/app/schemas/device.py`**
 
 ```python
 from pydantic import BaseModel, ConfigDict
@@ -2555,7 +2576,7 @@ class DeviceOut(BaseModel):
     enabled: bool
 ```
 
-- [ ] **Step 2: Create `backend/app/schemas/health.py`**
+- [x] **Step 2: Create `backend/app/schemas/health.py`**
 
 ```python
 from datetime import datetime
@@ -2575,7 +2596,7 @@ class HealthOut(BaseModel):
     consecutive_fail: int
 ```
 
-- [ ] **Step 3: Create `backend/app/schemas/session.py`**
+- [x] **Step 3: Create `backend/app/schemas/session.py`**
 
 ```python
 from datetime import datetime
@@ -2602,7 +2623,7 @@ class SessionOut(BaseModel):
     finished_at: datetime | None
 ```
 
-- [ ] **Step 4: Create `backend/app/schemas/pair.py`**
+- [x] **Step 4: Create `backend/app/schemas/pair.py`**
 
 ```python
 from datetime import datetime
@@ -2632,7 +2653,7 @@ class MatrixCell(BaseModel):
     error_message: str | None
 ```
 
-- [ ] **Step 5: Create `backend/app/api/devices.py`**
+- [x] **Step 5: Create `backend/app/api/devices.py`**
 
 ```python
 from fastapi import APIRouter, Depends
@@ -2662,7 +2683,7 @@ async def list_health(
     return await health_repo.list_all(session)
 ```
 
-- [ ] **Step 6: Create `backend/app/api/health.py`**
+- [x] **Step 6: Create `backend/app/api/health.py`**
 
 ```python
 from fastapi import APIRouter, Depends, Request
@@ -2685,7 +2706,7 @@ async def refresh(
     return {"status": "refreshed"}
 ```
 
-- [ ] **Step 7: Create `backend/app/api/tests.py`**
+- [x] **Step 7: Create `backend/app/api/tests.py`**
 
 ```python
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -2750,7 +2771,7 @@ async def cancel(
     return {"status": "cancelled"}
 ```
 
-- [ ] **Step 8: Create `backend/app/api/matrix.py`**
+- [x] **Step 8: Create `backend/app/api/matrix.py`**
 
 ```python
 from fastapi import APIRouter, Depends, Query
@@ -2780,7 +2801,7 @@ async def get_matrix(
     return list(result.scalars().all())
 ```
 
-- [ ] **Step 9: Wire routers in `backend/app/main.py` (modify the `include_router` block)**
+- [x] **Step 9: Wire routers in `backend/app/main.py` (modify the `include_router` block)**
 
 Replace `app.include_router(auth_api.router)` with:
 
@@ -2795,7 +2816,7 @@ app.include_router(tests_api.router)
 app.include_router(matrix_api.router)
 ```
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add backend/app/schemas/ backend/app/api/ backend/app/main.py
@@ -2810,7 +2831,7 @@ git commit -m "feat(api): device, health, tests, matrix endpoints"
 - Create: `backend/app/cli/__init__.py`
 - Create: `backend/app/cli/seed.py`
 
-- [ ] **Step 1: Create `backend/app/cli/seed.py`**
+- [x] **Step 1: Create `backend/app/cli/seed.py`**
 
 ```python
 """Run: python -m app.cli.seed admin admin"""
@@ -2829,7 +2850,7 @@ async def _seed(username: str, password: str) -> None:
             await user_repo.create(
                 session, username=username, password_hash=hash_password(password)
             )
-        # demo devices — replace with real INSERTs in production
+        # demo devices ??replace with real INSERTs in production
         if not await session.get(BacsDevice, 1):
             session.add_all(
                 BacsDevice(name=f"BACS-{i:03d}", node_id=i % 64, ip_address=f"10.0.0.{i+1}")
@@ -2842,7 +2863,7 @@ if __name__ == "__main__":
     asyncio.run(_seed(sys.argv[1], sys.argv[2]))
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add backend/app/cli/
@@ -2863,7 +2884,7 @@ git commit -m "feat(cli): seed admin user and demo BACS devices"
 - Create: `frontend/src/lib/types.ts`
 - Create: `frontend/src/app/layout.tsx`
 
-- [ ] **Step 1: Create `frontend/package.json`**
+- [x] **Step 1: Create `frontend/package.json`**
 
 ```json
 {
@@ -2887,7 +2908,7 @@ git commit -m "feat(cli): seed admin user and demo BACS devices"
 }
 ```
 
-- [ ] **Step 2: Create `frontend/tsconfig.json`**
+- [x] **Step 2: Create `frontend/tsconfig.json`**
 
 ```json
 {
@@ -2914,7 +2935,7 @@ git commit -m "feat(cli): seed admin user and demo BACS devices"
 }
 ```
 
-- [ ] **Step 3: Create `frontend/next.config.mjs`**
+- [x] **Step 3: Create `frontend/next.config.mjs`**
 
 ```javascript
 const config = {
@@ -2925,7 +2946,7 @@ const config = {
 export default config;
 ```
 
-- [ ] **Step 4: Create `frontend/src/lib/types.ts`**
+- [x] **Step 4: Create `frontend/src/lib/types.ts`**
 
 ```typescript
 export type HealthStatus = "ok" | "fail" | "unknown";
@@ -2972,7 +2993,7 @@ export interface MatrixCell {
 }
 ```
 
-- [ ] **Step 5: Create `frontend/src/lib/api.ts`**
+- [x] **Step 5: Create `frontend/src/lib/api.ts`**
 
 ```typescript
 const TOKEN_KEY = "ncvs_token";
@@ -3024,7 +3045,7 @@ export const api = {
 };
 ```
 
-- [ ] **Step 6: Create `frontend/src/app/layout.tsx`**
+- [x] **Step 6: Create `frontend/src/app/layout.tsx`**
 
 ```tsx
 export const metadata = { title: "NCVS BACS Monitor" };
@@ -3038,7 +3059,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 }
 ```
 
-- [ ] **Step 7: Install and verify dev server starts**
+- [x] **Step 7: Install and verify dev server starts**
 
 ```bash
 cd frontend && npm install && npm run dev -- --port 3000 &
@@ -3049,7 +3070,7 @@ kill %1
 
 Expected: `200`.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add frontend/package.json frontend/tsconfig.json frontend/next.config.mjs \
@@ -3064,7 +3085,7 @@ git commit -m "feat(frontend): scaffold Next.js + API client"
 **Files:**
 - Create: `frontend/src/app/login/page.tsx`
 
-- [ ] **Step 1: Create the page**
+- [x] **Step 1: Create the page**
 
 ```tsx
 "use client";
@@ -3094,7 +3115,7 @@ export default function LoginPage() {
 
   return (
     <main style={{ maxWidth: 320 }}>
-      <h1>로그인</h1>
+      <h1>濡쒓렇??/h1>
       <form onSubmit={submit}>
         <input
           placeholder="username"
@@ -3109,7 +3130,7 @@ export default function LoginPage() {
           onChange={(e) => setPassword(e.target.value)}
           style={{ display: "block", marginBottom: 8, width: "100%" }}
         />
-        <button type="submit">로그인</button>
+        <button type="submit">濡쒓렇??/button>
         {error && <p style={{ color: "red" }}>{error}</p>}
       </form>
     </main>
@@ -3117,7 +3138,7 @@ export default function LoginPage() {
 }
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add frontend/src/app/login/page.tsx
@@ -3133,7 +3154,7 @@ git commit -m "feat(frontend): login page"
 - Create: `frontend/src/components/DeviceTable.tsx`
 - Create: `frontend/src/app/devices/page.tsx`
 
-- [ ] **Step 1: Create `frontend/src/components/HealthBadge.tsx`**
+- [x] **Step 1: Create `frontend/src/components/HealthBadge.tsx`**
 
 ```tsx
 import { HealthStatus } from "@/lib/types";
@@ -3161,7 +3182,7 @@ export function HealthBadge({ status }: { status: HealthStatus }) {
 }
 ```
 
-- [ ] **Step 2: Create `frontend/src/components/DeviceTable.tsx`**
+- [x] **Step 2: Create `frontend/src/components/DeviceTable.tsx`**
 
 ```tsx
 import { Device, Health } from "@/lib/types";
@@ -3213,7 +3234,7 @@ export function DeviceTable({ devices, health, selected, onToggle }: Props) {
 }
 ```
 
-- [ ] **Step 3: Create `frontend/src/app/devices/page.tsx`**
+- [x] **Step 3: Create `frontend/src/app/devices/page.tsx`**
 
 ```tsx
 "use client";
@@ -3261,7 +3282,7 @@ export default function DevicesPage() {
 
   async function startTest() {
     if (selected.size < 2) {
-      alert("2개 이상 선택하세요");
+      alert("2媛??댁긽 ?좏깮?섏꽭??);
       return;
     }
     const session = await api.startTest([...selected]);
@@ -3270,13 +3291,13 @@ export default function DevicesPage() {
 
   return (
     <main>
-      <h1>BACS 장비</h1>
+      <h1>BACS ?λ퉬</h1>
       <div style={{ marginBottom: 12 }}>
         <button onClick={() => api.refreshHealth().then(loadHealth)}>
           Refresh Health
         </button>
         <button onClick={startTest} style={{ marginLeft: 8 }}>
-          선택 장비 Cross-test 시작 ({selected.size})
+          ?좏깮 ?λ퉬 Cross-test ?쒖옉 ({selected.size})
         </button>
       </div>
       <DeviceTable
@@ -3290,7 +3311,7 @@ export default function DevicesPage() {
 }
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add frontend/src/components/ frontend/src/app/devices/page.tsx
@@ -3305,7 +3326,7 @@ git commit -m "feat(frontend): devices dashboard with health and test trigger"
 - Create: `frontend/src/components/TestProgress.tsx`
 - Create: `frontend/src/app/tests/[id]/page.tsx`
 
-- [ ] **Step 1: Create `frontend/src/components/TestProgress.tsx`**
+- [x] **Step 1: Create `frontend/src/components/TestProgress.tsx`**
 
 ```tsx
 import { Session } from "@/lib/types";
@@ -3333,7 +3354,7 @@ export function TestProgress({ s }: { s: Session }) {
 }
 ```
 
-- [ ] **Step 2: Create `frontend/src/app/tests/[id]/page.tsx`**
+- [x] **Step 2: Create `frontend/src/app/tests/[id]/page.tsx`**
 
 ```tsx
 "use client";
@@ -3366,14 +3387,14 @@ export default function TestPage({ params }: { params: { id: string } }) {
     };
   }, [id]);
 
-  if (!session) return <main>로딩…</main>;
+  if (!session) return <main>濡쒕뵫??/main>;
   return (
     <main>
       <h1>Test Session #{session.id}</h1>
       <TestProgress s={session} />
       {session.status === "running" && (
         <button onClick={() => api.cancelSession(id)} style={{ marginTop: 12 }}>
-          취소
+          痍⑥냼
         </button>
       )}
     </main>
@@ -3381,7 +3402,7 @@ export default function TestPage({ params }: { params: { id: string } }) {
 }
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add frontend/src/components/TestProgress.tsx frontend/src/app/tests/
@@ -3396,7 +3417,7 @@ git commit -m "feat(frontend): test session progress page with polling"
 - Create: `frontend/src/components/Matrix.tsx`
 - Create: `frontend/src/app/matrix/page.tsx`
 
-- [ ] **Step 1: Create `frontend/src/components/Matrix.tsx`**
+- [x] **Step 1: Create `frontend/src/components/Matrix.tsx`**
 
 ```tsx
 import { Device, MatrixCell } from "@/lib/types";
@@ -3448,7 +3469,7 @@ export function Matrix({ devices, cells }: Props) {
 }
 ```
 
-- [ ] **Step 2: Create `frontend/src/app/matrix/page.tsx`**
+- [x] **Step 2: Create `frontend/src/app/matrix/page.tsx`**
 
 ```tsx
 "use client";
@@ -3472,9 +3493,9 @@ export default function MatrixPage() {
 
   return (
     <main>
-      <h1>Cross-test 결과 매트릭스</h1>
+      <h1>Cross-test 寃곌낵 留ㅽ듃由?뒪</h1>
       <p style={{ fontSize: 12, color: "#666" }}>
-        행 = 송신(src), 열 = 수신(dst). 녹색 ok / 빨강 fail / 회색 미테스트.
+        ??= ?≪떊(src), ??= ?섏떊(dst). ?뱀깋 ok / 鍮④컯 fail / ?뚯깋 誘명뀒?ㅽ듃.
       </p>
       <Matrix devices={devices} cells={cells} />
     </main>
@@ -3482,7 +3503,7 @@ export default function MatrixPage() {
 }
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add frontend/src/components/Matrix.tsx frontend/src/app/matrix/
@@ -3499,7 +3520,7 @@ git commit -m "feat(frontend): cross-test result matrix view"
 - Create: `backend/Dockerfile`
 - Create: `frontend/Dockerfile`
 
-- [ ] **Step 1: Create `backend/Dockerfile`**
+- [x] **Step 1: Create `backend/Dockerfile`**
 
 ```dockerfile
 FROM python:3.12-slim
@@ -3510,7 +3531,7 @@ COPY . .
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
-- [ ] **Step 2: Create `frontend/Dockerfile`**
+- [x] **Step 2: Create `frontend/Dockerfile`**
 
 ```dockerfile
 FROM node:20-alpine
@@ -3523,7 +3544,7 @@ EXPOSE 3000
 CMD ["npm", "start"]
 ```
 
-- [ ] **Step 3: Smoke run full stack**
+- [x] **Step 3: Smoke run full stack**
 
 ```bash
 docker compose up -d --build
@@ -3542,7 +3563,7 @@ Expected: JSON containing `access_token`.
 
 Open `http://localhost:3000/login` in a browser, log in as `admin`/`admin`, see the devices page render with seeded devices.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add backend/Dockerfile frontend/Dockerfile
@@ -3554,16 +3575,16 @@ git commit -m "feat(deploy): docker-compose images for backend and frontend"
 ## Self-Review Summary
 
 - **Spec coverage**:
-  - §1 Architecture → Task 16 (main.py lifespan), Task 12 (scheduler)
-  - §1.5 Port mapping → CrossTestProtocol abstraction (Task 6) ready to wire when real protocol lands
-  - §2 Data model → Tasks 2, 3
-  - §3.2 Health-check → Tasks 5, 7, 8, plus periodic job in Task 16
-  - §3.3 Cross-test scheduler → Tasks 9–14
-  - §3.4 Device lock semantics → Task 9 + Task 14 invariant test
-  - §3.6 Frontend polling → Tasks 19–23
-  - §4.1 Failure modes → handled in Task 12 (worker except), Task 16 (recover_state), Task 17 (cancel endpoint)
-  - §4.2 .env knobs → Task 0 (.env.example), Task 1 (Settings)
-  - §4.4 Tests → unit + integration across Tasks 4–14
-  - §5 TBD protocol → encapsulated in `crosstest_proto.py` (Task 6); only Task 6 changes when finalized
-- **Placeholders**: only `StubCrossTestProtocol` (intentional and called out in Task 6 docstring and spec §5).
+  - 짠1 Architecture ??Task 16 (main.py lifespan), Task 12 (scheduler)
+  - 짠1.5 Port mapping ??CrossTestProtocol abstraction (Task 6) ready to wire when real protocol lands
+  - 짠2 Data model ??Tasks 2, 3
+  - 짠3.2 Health-check ??Tasks 5, 7, 8, plus periodic job in Task 16
+  - 짠3.3 Cross-test scheduler ??Tasks 9??4
+  - 짠3.4 Device lock semantics ??Task 9 + Task 14 invariant test
+  - 짠3.6 Frontend polling ??Tasks 19??3
+  - 짠4.1 Failure modes ??handled in Task 12 (worker except), Task 16 (recover_state), Task 17 (cancel endpoint)
+  - 짠4.2 .env knobs ??Task 0 (.env.example), Task 1 (Settings)
+  - 짠4.4 Tests ??unit + integration across Tasks 4??4
+  - 짠5 TBD protocol ??encapsulated in `crosstest_proto.py` (Task 6); only Task 6 changes when finalized
+- **Placeholders**: only `StubCrossTestProtocol` (intentional and called out in Task 6 docstring and spec 짠5).
 - **Type consistency**: `pick_next_dispatchable`, `try_acquire_pair`, `release_pair`, `WorkItem`, `PairResult`, `CrossTestProtocol.run_pair` names are consistent across Tasks 6, 9, 11, 12.
