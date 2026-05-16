@@ -25,7 +25,9 @@
       "Bash(./.venv/Scripts/python.exe -c \"from app.services.crosstest.scheduler import CrossTestScheduler, pick_next_dispatchable; from app.services.crosstest.runner import PairRunner, WorkItem; print\\('ok'\\)\")",
       "Bash(./.venv/Scripts/python.exe *)",
       "Skill(superpowers:using-superpowers)",
-      "PowerShell($doc)"
+      "PowerShell($doc)",
+      "Bash(pytest tests/unit/test_security.py -v)",
+      "PowerShell(& C:\\\\Project\\\\MyProject\\\\ncvs\\\\backend\\\\.venv\\\\Scripts\\\\python.exe -m pytest C:\\\\Project\\\\MyProject\\\\ncvs\\\\backend\\\\tests\\\\unit\\\\test_security.py -v 2>&1 | Select-Object -Last 20)"
     ]
   },
   "enabledPlugins": {
