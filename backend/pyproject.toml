@@ -11,7 +11,7 @@ dependencies = [
   "pydantic>=2.6",
   "pydantic-settings>=2.2",
   "apscheduler>=3.10",
-  "passlib[bcrypt]>=1.7",
+  "bcrypt>=4.0",
   "pyjwt>=2.8",
   "loguru>=0.7",
 ]
