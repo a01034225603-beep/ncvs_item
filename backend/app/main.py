@@ -6,6 +6,10 @@ from fastapi import FastAPI
 from loguru import logger
 
 from app.api import auth as auth_api
+from app.api import devices as devices_api
+from app.api import health as health_api
+from app.api import matrix as matrix_api
+from app.api import tests as tests_api
 from app.config import settings
 from app.db import SessionLocal
 from app.models import SessionStatus
@@ -72,6 +76,10 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="NCVS BACS Monitor", lifespan=lifespan)
 app.include_router(auth_api.router)
+app.include_router(devices_api.router)
+app.include_router(health_api.router)
+app.include_router(tests_api.router)
+app.include_router(matrix_api.router)
 
 
 @app.get("/healthz")
