@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(superpowers:subagent-driven-development)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Project\\\\MyProject\\\\ncvs\\\\backend\" -Recurse)",
+      "Bash(Select-Object FullName)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "PowerShell(New-Item *)",
+      "Bash(python -m venv .venv)",
+      "Bash(.venv/Scripts/python.exe -m pip install --quiet --upgrade pip)",
+      "Bash(.venv/Scripts/python.exe -m pip install --quiet -e \".[dev]\")",
+      "Bash(.venv/Scripts/python.exe -c \"import fastapi, sqlalchemy, pytest, pytest_asyncio; print\\('deps OK', fastapi.__version__, sqlalchemy.__version__\\)\")",
+      "Bash(.\\\\.venv\\\\Scripts\\\\python.exe *)",
+      "Bash(New-Item -ItemType Directory -Force \"C:\\\\Project\\\\MyProject\\\\ncvs\\\\backend\\\\tests\\\\simulator\")",
+      "Bash(Out-Null)",
+      "Bash(New-Item -ItemType Directory -Force \"C:\\\\Project\\\\MyProject\\\\ncvs\\\\backend\\\\tests\\\\integration\")",
+      "Bash(Write-Host \"Directories created\")",
+      "Bash(./.venv/Scripts/python.exe -c \"from app.protocol.crosstest_proto import CrossTestProtocol, StubCrossTestProtocol, PairResult; print\\('ok'\\)\")",
+      "Bash(./.venv/Scripts/python.exe -m py_compile app/protocol/crosstest_proto.py)",
+      "Bash(./.venv/Scripts/python.exe -c \"from app.repositories import device_repo, health_repo; print\\('ok'\\)\")",
+      "PowerShell(.\\\\.venv\\\\Scripts\\\\python.exe -c \"from app.repositories import session_repo, pair_repo, lock_repo; print\\('ok'\\)\")",
+      "Skill(superpowers:test-driven-development)",
+      "Bash(git checkout *)",
+      "Bash(./.venv/Scripts/python.exe -c \"from app.services.crosstest.scheduler import CrossTestScheduler, pick_next_dispatchable; from app.services.crosstest.runner import PairRunner, WorkItem; print\\('ok'\\)\")",
+      "Bash(./.venv/Scripts/python.exe *)",
+      "Skill(superpowers:using-superpowers)",
+      "PowerShell($doc)",
+      "Bash(pytest tests/unit/test_security.py -v)",
+      "PowerShell(& C:\\\\Project\\\\MyProject\\\\ncvs\\\\backend\\\\.venv\\\\Scripts\\\\python.exe -m pytest C:\\\\Project\\\\MyProject\\\\ncvs\\\\backend\\\\tests\\\\unit\\\\test_security.py -v 2>&1 | Select-Object -Last 20)"
+    ]
+  },
+  "enabledPlugins": {
+    "superpowers@claude-plugins-official": true
+  }
+}
