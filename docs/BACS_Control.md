@@ -375,3 +375,147 @@ typedef struct {
 | 300 (0x12C) | Ex) "123.123.123.123" | Lost Control, Report New Connected IP |
 | 301 (0x12D) | Ex) "123.123.123.123" | Intercept Control, Report Old Connected IP |
 | 302 (0x12E) | Ex) "123.123.123.123" | Already Control, Report Current Connected IP |
+
+---
+
+## 2. 로컬 네트워크 현장 테스트 가이드
+
+> 인터넷을 끊고 BACS 로컬 네트워크에 접속했을 때 처음부터 끝까지 따라하는 절차입니다.
+
+---
+
+### STEP 1. 노트북 IP 설정
+
+로컬 네트워크 대역에 맞게 노트북 IP를 수동으로 변경합니다.
+
+**macOS 기준:**
+1. 시스템 환경설정 → 네트워크 → 사용 중인 어댑터 선택
+2. IPv4 구성: 수동
+3. IP 주소: 로컬 네트워크 대역에 맞는 주소 입력 (예: 192.168.1.100)
+4. 서브넷 마스크: 255.255.255.0
+5. 적용 후 저장
+
+---
+
+### STEP 2. 네트워크 연결 확인
+
+터미널에서 아래 명령어로 BACS 장비까지 통신 가능한지 먼저 확인합니다.
+
+    # 노트북 현재 IP 확인
+    ifconfig | grep "inet "
+
+    # AGW 장비 통신 확인
+    ping -c 3 192.168.1.10
+
+    # IPSEC 장비 통신 확인
+    ping -c 3 192.168.2.10
+
+- ping 응답이 오면 → STEP 3 진행
+- ping 응답이 없으면 → IP 설정 재확인 후 네트워크 담당자에게 문의
+
+---
+
+### STEP 3. 패킷 캡처 준비 (별도 터미널)
+
+실제 UDP 송수신 내용을 기록하기 위해 터미널을 하나 더 열고 아래 명령어를 실행해 둡니다.
+
+    # UDP 7788 포트 패킷 캡처 (main.py 실행 전에 미리 시작)
+    sudo tcpdump -i any udp port 7788 -XX
+
+비밀번호 입력 후 대기 상태로 두고 STEP 4 진행.
+
+---
+
+### STEP 4. 실제 장비 헬스체크 실행
+
+    cd /Users/kjw/Documents/NCVS_project/ncvs_udp_test
+    python3 main.py
+
+정상 출력 예시:
+
+    [BACS 헬스체크] 장비 목록 로딩: devices.json
+      → 2대 장비 등록 확인
+      → UDP 헬스체크 시작 (병렬, 포트 7788, 타임아웃 5초)
+    ==================================================
+    장비명               IP               타입     상태       지연(ms)
+    --------------------------------------------------
+    BACS-AGW-001        192.168.1.10     AGW      ONLINE    12.3
+    BACS-IPSEC-001      192.168.2.10     IPSEC    ONLINE    8.7
+    ==================================================
+    총 2대 | ONLINE: 2대 | OFFLINE: 0대
+
+---
+
+### STEP 5. 통합 테스트 실행
+
+    python3 -m pytest -m integration -v -s 2>&1
+
+정상 출력 예시:
+
+    test_checker.py::TestCheckIntegration::test_check_real_device_agw PASSED
+    test_checker.py::TestCheckIntegration::test_check_real_device_ipsec PASSED
+    2 passed
+
+---
+
+### STEP 6. 결과 판단
+
+| 결과 | 의미 | 조치 |
+|---|---|---|
+| 전 단계 정상 | 개발 완료, 실 운용 가능 | 완료 |
+| ping은 되는데 OFFLINE | UDP 패킷 송수신 문제 | STEP 7 진행 |
+| ping 자체가 안 됨 | 네트워크 연결 문제 | IP 설정 재확인 |
+| 응답은 오는데 OFFLINE | 응답 패킷 형식 불일치 | STEP 7 진행 |
+
+---
+
+### STEP 7. 문제 발생 시 - 인터넷 복구 후 Copilot에게 전달할 자료
+
+인터넷에 다시 연결한 뒤 아래 자료를 Copilot에게 전달하면 디아그노즈(스킬 4)를 즉시 진행합니다.
+
+#### 수집 명령어 (현장에서 실행 후 바탕화면에 저장)
+
+    {
+      echo "=== ifconfig ==="
+      ifconfig | grep "inet "
+      echo ""
+      echo "=== ping AGW ==="
+      ping -c 3 192.168.1.10
+      echo ""
+      echo "=== ping IPSEC ==="
+      ping -c 3 192.168.2.10
+      echo ""
+      echo "=== main.py ==="
+      python3 main.py
+      echo ""
+      echo "=== integration test ==="
+      python3 -m pytest -m integration -v -s
+    } 2>&1 | tee ~/Desktop/bacs_result.txt
+
+실행 후 ~/Desktop/bacs_result.txt 파일을 인터넷 복구 후 Copilot에 전달.
+tcpdump 는 별도 터미널에서 실행, Ctrl+C 로 중단 후 출력 내용 복사.
+
+#### 말로 알려줄 사항
+
+| 항목 | 확인 내용 |
+|---|---|
+| 장비 실제 IP | devices.json 의 IP와 실제 장비 IP가 일치하는지 |
+| 포트 번호 | 7788 이 맞는지 현장 담당자 확인 |
+| tcpdump 패킷 방향 | 패킷이 나가기만 하는지 / 응답도 오는지 |
+| 응답 패킷 hex 값 | 응답이 오는 경우 실제 바이트 값 (예: 01 01 0D ...) |
+
+#### Copilot 전달 문구 템플릿
+
+    로컬 네트워크 테스트 결과 문제 발생.
+    디아그노즈 스킬로 분석해줘.
+
+    [bacs_result.txt 내용]
+    (파일 전체 붙여넣기)
+
+    [tcpdump 결과]
+    (캡처 내용 붙여넣기)
+
+    [추가 사항]
+    - 실제 장비 IP: xxx.xxx.xxx.xxx
+    - 포트: 7788 맞음 / 틀림 (실제 포트: xxxx)
+    - tcpdump: 패킷 나가기만 함 / 응답도 옴

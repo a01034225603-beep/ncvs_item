@@ -1,16 +1,22 @@
 {
   "devices": [
     {
-      "name": "BACS-AGW-001",
+      "name": "BACS-test_10",
       "ip": "192.168.1.10",
       "port": 7788,
-      "network_type": "AGW"
+      "network_type": "local"
     },
     {
-      "name": "BACS-IPSEC-001",
-      "ip": "192.168.2.10",
+      "name": "BACS-test_11",
+      "ip": "192.168.1.11",
       "port": 7788,
-      "network_type": "IPSEC"
+      "network_type": "local"
+    },
+    {
+      "name": "BACS-test_12",
+      "ip": "192.168.1.12",
+      "port": 7788,
+      "network_type": "local"
     }
   ]
 }
