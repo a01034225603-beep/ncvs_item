@@ -1,17 +1,36 @@
 import { HealthStatus } from "@/lib/types";
 
-const STYLES: Record<HealthStatus, string> = {
-  ok: "bg-emerald-100 text-emerald-700 ring-emerald-600/20",
-  fail: "bg-red-100 text-red-700 ring-red-600/20",
-  unknown: "bg-slate-100 text-slate-600 ring-slate-500/20",
+const CFG: Record<HealthStatus, { dot: string; text: string; label: string }> = {
+  ok:      { dot: "var(--color-ok)",   text: "var(--color-ok)",   label: "정상" },
+  fail:    { dot: "var(--color-fail)", text: "var(--color-fail)", label: "장애" },
+  unknown: { dot: "var(--color-fog)",  text: "var(--color-fog)",  label: "미확인" },
 };
 
 export function HealthBadge({ status }: { status: HealthStatus }) {
+  const cfg = CFG[status];
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${STYLES[status]}`}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 5,
+        fontFamily: "var(--font-mono)",
+        fontSize: 10,
+        letterSpacing: "0.08em",
+        color: cfg.text,
+      }}
     >
-      {status}
+      <span
+        style={{
+          width: 5,
+          height: 5,
+          borderRadius: "50%",
+          background: cfg.dot,
+          display: "inline-block",
+          flexShrink: 0,
+        }}
+      />
+      {cfg.label}
     </span>
   );
 }
