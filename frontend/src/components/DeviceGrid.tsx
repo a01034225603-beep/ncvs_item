@@ -170,7 +170,7 @@ export function DeviceGrid({ devices, health, onEdit, onDelete }: Props) {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "1fr 170px 90px 130px 100px",
+              gridTemplateColumns: "1fr 120px 170px 90px 130px 100px",
               gap: 0,
               borderBottom: "1px dashed var(--color-edge)",
               background: "var(--color-bg2)",
@@ -186,6 +186,7 @@ export function DeviceGrid({ devices, health, onEdit, onDelete }: Props) {
             }}
           >
             <span style={{ padding: "8px 12px", borderRight: "1px dashed var(--color-edge)" }}>장비명</span>
+            <span style={{ padding: "8px 12px", borderRight: "1px dashed var(--color-edge)" }}>위치</span>
             <span style={{ padding: "8px 12px", borderRight: "1px dashed var(--color-edge)" }}>IP · 포트</span>
             <span style={{ padding: "8px 12px", borderRight: "1px dashed var(--color-edge)" }}>상태</span>
             <span style={{ padding: "8px 12px", borderRight: "1px dashed var(--color-edge)" }}>최근 확인</span>
@@ -213,7 +214,7 @@ export function DeviceGrid({ devices, health, onEdit, onDelete }: Props) {
                   key={d.id}
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "1fr 170px 90px 130px 100px",
+                    gridTemplateColumns: "1fr 120px 170px 90px 130px 100px",
                     gap: 0,
                     padding: "0",
                     borderBottom: "1px dashed var(--color-edge)",
@@ -241,6 +242,23 @@ export function DeviceGrid({ devices, health, onEdit, onDelete }: Props) {
                     }}
                   >
                     {d.name}
+                  </span>
+
+                  {/* 위치 (sido + sigungu) */}
+                  <span
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      fontSize: 10,
+                      color: d.sigungu ? "var(--color-fog)" : "var(--color-edge)",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      padding: "9px 10px",
+                      borderRight: "1px dashed var(--color-edge)",
+                    }}
+                    title={[d.sido, d.sigungu].filter(Boolean).join(" ") || "위치 미등록"}
+                  >
+                    {d.sigungu || d.sido || "—"}
                   </span>
 
                   {/* IP */}
