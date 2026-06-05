@@ -46,7 +46,9 @@ export default function TestPage({ params }: { params: Promise<{ id: string }> }
   useEffect(() => {
     const token = getToken();
     if (!token) return;
-    const sse = new EventSource(`/api/tests/${id}/stream?token=${encodeURIComponent(token)}`);
+    // Next.js 프록시는 SSE 응답을 버퍼링함 → 백엔드(포트 8000)에 직접 연결
+    const base = `${window.location.protocol}//${window.location.hostname}:8000`;
+    const sse = new EventSource(`${base}/tests/${id}/stream?token=${encodeURIComponent(token)}`);
     sse.onmessage = (e) => {
       try { setSession(JSON.parse(e.data) as Session); } catch { /* ignore */ }
     };
@@ -55,13 +57,14 @@ export default function TestPage({ params }: { params: Promise<{ id: string }> }
     return () => sse.close();
   }, [id]);
 
-  // ── 패킷 이벤트 SSE ─────────────────────────────────────────────────
+  // ── 패킷 이벤트 SSE ─────────────────────────────────────
   useEffect(() => {
     const token = getToken();
     if (!token) return;
     // 이미 연결 중이면 재연결하지 않음
     if (packetSseRef.current) return;
-    const sse = new EventSource(`/api/tests/${id}/packets?token=${encodeURIComponent(token)}`);
+    const base = `${window.location.protocol}//${window.location.hostname}:8000`;
+    const sse = new EventSource(`${base}/tests/${id}/packets?token=${encodeURIComponent(token)}`);
     packetSseRef.current = sse;
     sse.onmessage = (e) => {
       try {
