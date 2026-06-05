@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import (
@@ -27,10 +27,13 @@ async def list_pending_for_session(
     session: AsyncSession, session_id: int
 ) -> list[TestSessionPair]:
     result = await session.execute(
-        select(TestSessionPair).where(
+        select(TestSessionPair)
+        .where(
             TestSessionPair.session_id == session_id,
             TestSessionPair.status == PairStatus.pending,
         )
+        # 삽입 순서(id 오름차순)로 고정 — 비결정적 반환 방지
+        .order_by(TestSessionPair.id)
     )
     return list(result.scalars().all())
 
@@ -55,6 +58,24 @@ async def list_all_for_session(
         )
     )
     return list(result.scalars().all())
+
+
+async def mark_pending_as_skipped(session: AsyncSession, session_id: int) -> None:
+    """세션의 남은 pending 페어를 모두 skipped 로 일괄 처리한다.
+
+    호출 중단 시 아직 실행되지 않은 페어를 skipped 상태로 변경한다.
+    원자적 UPDATE 를 사용하므로 대기 중인 다른 쿼리와 충돌하지 않는다.
+    """
+    stmt = (
+        update(TestSessionPair)
+        .where(
+            TestSessionPair.session_id == session_id,
+            TestSessionPair.status == PairStatus.pending,
+        )
+        .values(status=PairStatus.skipped)
+        .execution_options(synchronize_session=False)
+    )
+    await session.execute(stmt)
 
 
 async def mark_running(session: AsyncSession, pair_id: int) -> None:

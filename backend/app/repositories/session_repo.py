@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import SessionStatus, TestSession
@@ -76,11 +76,20 @@ async def mark_finished(
 async def increment_counters(
     session: AsyncSession, session_id: int, *, ok: bool
 ) -> None:
-    obj = await session.get(TestSession, session_id)
-    if obj is None:
-        return
-    obj.done_pairs += 1
-    if ok:
-        obj.ok_pairs += 1
-    else:
-        obj.fail_pairs += 1
+    """done_pairs / ok_pairs / fail_pairs 를 원자적 SQL 증분으로 갱신한다.
+
+    ORM read-modify-write 대신 UPDATE col = col + 1 방식을 사용하므로
+    다수 페어가 동시에 완료되더라도 데드락 없이 안전하게 처리된다.
+    """
+    stmt = (
+        update(TestSession)
+        .where(TestSession.id == session_id)
+        .values(
+            done_pairs=TestSession.done_pairs + 1,
+            ok_pairs=TestSession.ok_pairs + (1 if ok else 0),
+            fail_pairs=TestSession.fail_pairs + (0 if ok else 1),
+        )
+        # ORM autoflush 를 우회하여 불필요한 flush 충돌 방지
+        .execution_options(synchronize_session=False)
+    )
+    await session.execute(stmt)
