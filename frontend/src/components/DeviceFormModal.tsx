@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Device, DeviceCreate } from "@/lib/types";
+import { SIDO_LIST, getSigunguList, getCoord } from "@/lib/korea-districts";
 
 interface Props {
   initial?: Device | null;   // null = 신규 등록, Device = 수정
@@ -36,6 +37,10 @@ export function DeviceFormModal({ initial, onSave, onClose }: Props) {
   const [udpPort, setUdpPort] = useState(String(initial?.udp_port ?? 7788));
   const [tcpPort, setTcpPort] = useState(String(initial?.tcp_port ?? 7788));
   const [location, setLoc]    = useState(initial?.location ?? "");
+  const [sido, setSido]        = useState(initial?.sido ?? "");
+  const [sigungu, setSigungu]  = useState(initial?.sigungu ?? "");
+  const [geoX, setGeoX]        = useState<number | null>(initial?.geo_x ?? null);
+  const [geoY, setGeoY]        = useState<number | null>(initial?.geo_y ?? null);
   const [enabled, setEnabled] = useState(initial?.enabled ?? true);
   // 호출시험 전화번호 (숫자·하이픈)
   const [p0Phone, setP0Phone] = useState(initial?.port0_phone ?? "");
@@ -51,6 +56,25 @@ export function DeviceFormModal({ initial, onSave, onClose }: Props) {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
+
+  function handleSidoChange(newSido: string) {
+    setSido(newSido);
+    setSigungu("");
+    setGeoX(null);
+    setGeoY(null);
+    if (newSido) {
+      const coord = getCoord(newSido);
+      if (coord) { setGeoX(coord.geo_x); setGeoY(coord.geo_y); }
+    }
+  }
+
+  function handleSigunguChange(newSigungu: string) {
+    setSigungu(newSigungu);
+    if (sido && newSigungu) {
+      const coord = getCoord(sido, newSigungu);
+      if (coord) { setGeoX(coord.geo_x); setGeoY(coord.geo_y); }
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -69,6 +93,10 @@ export function DeviceFormModal({ initial, onSave, onClose }: Props) {
         udp_port: Number(udpPort),
         tcp_port: Number(tcpPort),
         location: location.trim() || null,
+        sido: sido || null,
+        sigungu: sigungu || null,
+        geo_x: geoX,
+        geo_y: geoY,
         enabled,
         port0_phone: toPhone(p0Phone),
         port1_phone: toPhone(p1Phone),
@@ -155,11 +183,49 @@ export function DeviceFormModal({ initial, onSave, onClose }: Props) {
             </div>
           </div>
 
-          {/* 위치 */}
+          {/* 위치 (자유 텍스트) */}
           <div>
-            <label style={LABEL_STYLE}>위치</label>
+            <label style={LABEL_STYLE}>위치 설명 (선택)</label>
             <input value={location} onChange={(e) => setLoc(e.target.value)} style={FIELD_STYLE} placeholder="서울 IDC 1F" />
           </div>
+
+          {/* 시/도 선택 */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div>
+              <label style={LABEL_STYLE}>시/도</label>
+              <select
+                value={sido}
+                onChange={(e) => handleSidoChange(e.target.value)}
+                style={{ ...FIELD_STYLE, cursor: "pointer" }}
+              >
+                <option value="">— 선택 —</option>
+                {SIDO_LIST.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={LABEL_STYLE}>시/군/구</label>
+              <select
+                value={sigungu}
+                onChange={(e) => handleSigunguChange(e.target.value)}
+                disabled={!sido}
+                style={{ ...FIELD_STYLE, cursor: sido ? "pointer" : "not-allowed", opacity: sido ? 1 : 0.4 }}
+              >
+                <option value="">— 선택 —</option>
+                {getSigunguList(sido).map((sg) => <option key={sg} value={sg}>{sg}</option>)}
+              </select>
+            </div>
+          </div>
+
+          {/* 좌표 표시 (자동 입력, 확인용) */}
+          {(geoX !== null || geoY !== null) && (
+            <div style={{
+              fontFamily: "var(--font-mono)", fontSize: 9,
+              color: "var(--color-fog)", letterSpacing: "0.06em",
+              paddingLeft: 4,
+            }}>
+              좌표 → X {geoX?.toFixed(1)} / Y {geoY?.toFixed(1)}  (지도 자동 설정됨)
+            </div>
+          )}
 
           {/* 호출시험 전화번호 ─ TX(발신) */}
           <div style={{ borderTop: "1px solid var(--color-wire)", paddingTop: 12 }}>

@@ -5,6 +5,7 @@ import { TopBar } from "@/components/TopBar";
 import { TestProgress } from "@/components/TestProgress";
 import { PacketLog } from "@/components/PacketLog";
 import { Matrix } from "@/components/Matrix";
+import { MapTopology } from "@/components/MapTopology";
 import { api, getToken } from "@/lib/api";
 import { Device, MatrixCell, PacketEvent, Scenario, Session } from "@/lib/types";
 
@@ -18,6 +19,7 @@ export default function TestPage({ params }: { params: Promise<{ id: string }> }
   const [packets, setPackets] = useState<PacketEvent[]>([]);
   const [matrixCells, setMatrixCells] = useState<MatrixCell[]>([]);
   const [matrixDevices, setMatrixDevices] = useState<Device[]>([]);
+  const [resultView, setResultView] = useState<"matrix" | "map">("map");
   // 패킷 SSE 중복 방지용 ref
   const packetSseRef = useRef<EventSource | null>(null);
 
@@ -152,7 +154,9 @@ export default function TestPage({ params }: { params: Promise<{ id: string }> }
             </h1>
 
             <div style={{ display: "flex", gap: 8 }}>
-              {session && (
+              {session && ([
+                "completed", "cancelled", "failed",
+              ].includes(session.status)) && (
                 <button
                   onClick={() => router.push(`/matrix?ids=${session.device_ids.join(",")}`)}
                   style={{
@@ -169,7 +173,7 @@ export default function TestPage({ params }: { params: Promise<{ id: string }> }
                   onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--color-accent)"; e.currentTarget.style.color = "var(--color-accent)"; }}
                   onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--color-wire)"; e.currentTarget.style.color = "var(--color-haze)"; }}
                 >
-                  매트릭스 보기 →
+                  추가 분석페이지 →
                 </button>
               )}
 
@@ -217,22 +221,38 @@ export default function TestPage({ params }: { params: Promise<{ id: string }> }
           </div>
         )}
 
-        {/* 결과 매트릭스 — 세션 완료/취소/실패 시 인라인 표시 */}
+        {/* 결과 뷰 — 세션 완료/취소/실패 시 망도 + 매트릭스 탭 */}
         {matrixCells.length > 0 && matrixDevices.length > 0 && (
           <div className="panel-frame" style={{ padding: "20px 24px 24px", marginTop: 16 }}>
-            <div
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: 9,
-                letterSpacing: "0.14em",
-                textTransform: "uppercase",
-                color: "var(--color-fog)",
-                marginBottom: 12,
-              }}
-            >
-              결과 매트릭스
+            {/* 탭 헤더 */}
+            <div style={{ display: "flex", gap: 0, marginBottom: 14, borderBottom: "1px solid var(--color-edge)" }}>
+              {(["map", "matrix"] as const).map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setResultView(v)}
+                  style={{
+                    padding: "4px 16px 6px",
+                    background: "none",
+                    border: "none",
+                    borderBottom: resultView === v ? "2px solid var(--color-accent)" : "2px solid transparent",
+                    fontFamily: "var(--font-mono)",
+                    fontSize: 9,
+                    letterSpacing: "0.14em",
+                    textTransform: "uppercase",
+                    color: resultView === v ? "var(--color-accent)" : "var(--color-fog)",
+                    cursor: "pointer",
+                  }}
+                >
+                  {v === "map" ? "광역 망도" : "매트릭스"}
+                </button>
+              ))}
             </div>
-            <Matrix devices={matrixDevices} cells={matrixCells} />
+            {/* 탭 콘텐츠 */}
+            {resultView === "map" ? (
+              <MapTopology devices={matrixDevices} cells={matrixCells} />
+            ) : (
+              <Matrix devices={matrixDevices} cells={matrixCells} />
+            )}
           </div>
         )}
 

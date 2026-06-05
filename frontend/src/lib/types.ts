@@ -18,6 +18,10 @@ export interface Device {
   udp_port: number;
   tcp_port: number;
   location: string | null;
+  sido: string | null;
+  sigungu: string | null;
+  geo_x: number | null;
+  geo_y: number | null;
   enabled: boolean;
   // 호출시험용 전화번호 (Port0·1 = TX 발신, Port2·3 = RX 착신)
   port0_phone: string | null;
@@ -32,6 +36,10 @@ export interface DeviceCreate {
   udp_port?: number;
   tcp_port?: number;
   location?: string | null;
+  sido?: string | null;
+  sigungu?: string | null;
+  geo_x?: number | null;
+  geo_y?: number | null;
   enabled?: boolean;
   port0_phone?: string | null;
   port1_phone?: string | null;

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, DateTime, Integer, String, UniqueConstraint
+from sqlalchemy import BigInteger, Boolean, DateTime, Float, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
@@ -17,6 +17,10 @@ class BacsDevice(Base):
     udp_port: Mapped[int] = mapped_column(Integer, default=7788)
     tcp_port: Mapped[int] = mapped_column(Integer, default=7788)
     location: Mapped[str | None] = mapped_column(String(255))
+    sido: Mapped[str | None] = mapped_column(String(32))       # 시/도
+    sigungu: Mapped[str | None] = mapped_column(String(64))    # 시/군/구
+    geo_x: Mapped[float | None] = mapped_column(Float)         # 지도 X 좌표 (0~100%)
+    geo_y: Mapped[float | None] = mapped_column(Float)         # 지도 Y 좌표 (0~100%)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     # 포트별 전화번호 (0·1 = 발신TX, 2·3 = 착신RX) — 숫자+하이픈 허용, 예) 800-1200
     port0_phone: Mapped[str | None] = mapped_column(String(32))

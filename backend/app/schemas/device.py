@@ -20,6 +20,10 @@ class DeviceOut(BaseModel):
     udp_port: int
     tcp_port: int
     location: str | None
+    sido: str | None
+    sigungu: str | None
+    geo_x: float | None
+    geo_y: float | None
     enabled: bool
     # 포트별 전화번호 (0·1=발신TX, 2·3=착신RX)
     port0_phone: str | None
@@ -34,6 +38,10 @@ class DeviceCreate(BaseModel):
     udp_port: int = Field(default=7788, ge=1, le=65535)
     tcp_port: int = Field(default=7788, ge=1, le=65535)
     location: str | None = Field(default=None, max_length=255)
+    sido: str | None = Field(default=None, max_length=32)
+    sigungu: str | None = Field(default=None, max_length=64)
+    geo_x: float | None = None
+    geo_y: float | None = None
     enabled: bool = True
     port0_phone: str | None = Field(default=None, max_length=32)
     port1_phone: str | None = Field(default=None, max_length=32)
@@ -52,6 +60,10 @@ class DeviceUpdate(BaseModel):
     udp_port: int | None = Field(default=None, ge=1, le=65535)
     tcp_port: int | None = Field(default=None, ge=1, le=65535)
     location: str | None = None
+    sido: str | None = Field(default=None, max_length=32)
+    sigungu: str | None = Field(default=None, max_length=64)
+    geo_x: float | None = None
+    geo_y: float | None = None
     enabled: bool | None = None
     port0_phone: str | None = Field(default=None, max_length=32)
     port1_phone: str | None = Field(default=None, max_length=32)
