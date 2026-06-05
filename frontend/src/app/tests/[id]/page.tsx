@@ -1,6 +1,5 @@
 "use client";
 import { use, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { TopBar } from "@/components/TopBar";
 import { TestProgress } from "@/components/TestProgress";
 import { PacketLog } from "@/components/PacketLog";
@@ -12,7 +11,6 @@ import { Device, MatrixCell, PacketEvent, Scenario, Session } from "@/lib/types"
 export default function TestPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: idParam } = use(params);
   const id = Number(idParam);
-  const router = useRouter();
   const [session, setSession] = useState<Session | null>(null);
   const [scenario, setScenario] = useState<Scenario | null>(null);
   const [cancelling, setCancelling] = useState(false);
@@ -154,29 +152,6 @@ export default function TestPage({ params }: { params: Promise<{ id: string }> }
             </h1>
 
             <div style={{ display: "flex", gap: 8 }}>
-              {session && ([
-                "completed", "cancelled", "failed",
-              ].includes(session.status)) && (
-                <button
-                  onClick={() => router.push(`/matrix?ids=${session.device_ids.join(",")}`)}
-                  style={{
-                    padding: "8px 14px",
-                    background: "none",
-                    border: "1px solid var(--color-wire)",
-                    fontFamily: "var(--font-mono)",
-                    fontSize: 11,
-                    letterSpacing: "0.08em",
-                    color: "var(--color-haze)",
-                    cursor: "pointer",
-                    transition: "border-color 0.15s, color 0.15s",
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--color-accent)"; e.currentTarget.style.color = "var(--color-accent)"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--color-wire)"; e.currentTarget.style.color = "var(--color-haze)"; }}
-                >
-                  추가 분석페이지 →
-                </button>
-              )}
-
               {session?.status === "running" && (
                 <button
                   onClick={cancel}
