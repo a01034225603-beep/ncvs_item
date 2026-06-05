@@ -245,7 +245,7 @@ export default function TestPage({ params }: { params: Promise<{ id: string }> }
         {/* 뒤로 가기 */}
         <div style={{ marginTop: 20 }}>
           <a
-            href="/devices"
+            href="/"
             style={{
               fontFamily: "var(--font-mono)",
               fontSize: 11,
@@ -257,7 +257,7 @@ export default function TestPage({ params }: { params: Promise<{ id: string }> }
             onMouseEnter={(e) => (e.currentTarget.style.color = "var(--color-accent)")}
             onMouseLeave={(e) => (e.currentTarget.style.color = "var(--color-fog)")}
           >
-            ← 장비 목록으로
+            ← 홈으로
           </a>
         </div>
       </div>
