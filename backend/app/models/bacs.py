@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, DateTime, Integer, SmallInteger, String, UniqueConstraint
+from sqlalchemy import BigInteger, Boolean, DateTime, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
@@ -13,12 +13,16 @@ class BacsDevice(Base):
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(128), nullable=False)
-    node_id: Mapped[int] = mapped_column(SmallInteger, nullable=False)
     ip_address: Mapped[str] = mapped_column(String(45), nullable=False)
     udp_port: Mapped[int] = mapped_column(Integer, default=7788)
     tcp_port: Mapped[int] = mapped_column(Integer, default=7788)
     location: Mapped[str | None] = mapped_column(String(255))
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    # 포트별 전화번호 (0·1 = 발신TX, 2·3 = 착신RX) — 숫자+하이픈 허용, 예) 800-1200
+    port0_phone: Mapped[str | None] = mapped_column(String(32))
+    port1_phone: Mapped[str | None] = mapped_column(String(32))
+    port2_phone: Mapped[str | None] = mapped_column(String(32))
+    port3_phone: Mapped[str | None] = mapped_column(String(32))
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()

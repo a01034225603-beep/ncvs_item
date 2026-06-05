@@ -1,9 +1,9 @@
 import { HealthStatus } from "@/lib/types";
 
 const CFG: Record<HealthStatus, { dot: string; text: string; label: string }> = {
-  ok:      { dot: "var(--color-ok)",   text: "var(--color-ok)",   label: "정상" },
-  fail:    { dot: "var(--color-fail)", text: "var(--color-fail)", label: "장애" },
-  unknown: { dot: "var(--color-fog)",  text: "var(--color-fog)",  label: "미확인" },
+  online:  { dot: "var(--color-ok)",   text: "var(--color-ok)",   label: "ONLINE" },
+  offline: { dot: "var(--color-fail)", text: "var(--color-fail)", label: "OFFLINE" },
+  unknown: { dot: "var(--color-fog)",  text: "var(--color-fog)",  label: "UNKNOWN" },
 };
 
 export function HealthBadge({ status }: { status: HealthStatus }) {

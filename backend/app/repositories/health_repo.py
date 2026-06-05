@@ -1,7 +1,6 @@
 from datetime import datetime
 
 from sqlalchemy import select
-from sqlalchemy.dialects.mysql import insert as mysql_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import DeviceHealth, HealthStatus
@@ -15,27 +14,25 @@ async def upsert(
     checked_at: datetime,
     error: str | None,
 ) -> None:
-    stmt = mysql_insert(DeviceHealth).values(
-        bacs_id=bacs_id,
-        status=status,
-        last_checked_at=checked_at,
-        last_ok_at=checked_at if status == HealthStatus.ok else None,
-        last_error=error,
-        consecutive_fail=0 if status == HealthStatus.ok else 1,
-    )
     existing = await session.get(DeviceHealth, bacs_id)
     if existing is None:
-        await session.execute(stmt)
+        # 최초 기록 — ORM 객체 신규 생성
+        existing = DeviceHealth(
+            bacs_id=bacs_id,
+            consecutive_fail=0,
+        )
+        session.add(existing)
+
+    # 공통 업데이트
+    existing.status = status
+    existing.last_checked_at = checked_at
+    if status == HealthStatus.online:
+        existing.last_ok_at = checked_at
+        existing.consecutive_fail = 0
+        existing.last_error = None
     else:
-        existing.status = status
-        existing.last_checked_at = checked_at
-        if status == HealthStatus.ok:
-            existing.last_ok_at = checked_at
-            existing.consecutive_fail = 0
-            existing.last_error = None
-        else:
-            existing.consecutive_fail += 1
-            existing.last_error = error
+        existing.consecutive_fail = (existing.consecutive_fail or 0) + 1
+        existing.last_error = error
     await session.flush()
 
 

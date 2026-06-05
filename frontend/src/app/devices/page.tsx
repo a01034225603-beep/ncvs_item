@@ -3,19 +3,28 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TopBar } from "@/components/TopBar";
 import { DeviceGrid } from "@/components/DeviceGrid";
+import { DeviceFormModal } from "@/components/DeviceFormModal";
 import { api, getToken } from "@/lib/api";
-import { Device, Health } from "@/lib/types";
+import { Device, DeviceCreate, Health } from "@/lib/types";
 
 export default function DevicesPage() {
   const router = useRouter();
   const [devices, setDevices]   = useState<Device[]>([]);
   const [health, setHealth]     = useState<Map<number, Health>>(new Map());
-  const [selected, setSelected] = useState<Set<number>>(new Set());
   const [refreshing, setRefreshing] = useState(false);
+
+  // 모달 상태: null = 닫힘, undefined = 신규 등록, Device = 수정
+  const [editTarget, setEditTarget] = useState<Device | null | undefined>(undefined);
+  const modalOpen = editTarget !== undefined;
 
   useEffect(() => {
     if (!getToken()) router.replace("/login");
   }, [router]);
+
+  const loadDevices = useCallback(async () => {
+    const rows = await api.devices();
+    setDevices(rows);
+  }, []);
 
   const loadHealth = useCallback(async () => {
     const rows = await api.health();
@@ -23,27 +32,11 @@ export default function DevicesPage() {
   }, []);
 
   useEffect(() => {
-    api.devices().then(setDevices);
+    loadDevices();
     loadHealth();
     const t = setInterval(loadHealth, 3000);
     return () => clearInterval(t);
-  }, [loadHealth]);
-
-  function toggle(id: number) {
-    setSelected((s) => {
-      const n = new Set(s);
-      n.has(id) ? n.delete(id) : n.add(id);
-      return n;
-    });
-  }
-
-  function addToSelection(ids: number[]) {
-    setSelected((s) => {
-      const n = new Set(s);
-      ids.forEach((id) => n.add(id));
-      return n;
-    });
-  }
+  }, [loadDevices, loadHealth]);
 
   async function refresh() {
     setRefreshing(true);
@@ -55,20 +48,96 @@ export default function DevicesPage() {
     }
   }
 
-  async function startTest() {
-    if (selected.size < 2) return;
-    const session = await api.startTest([...selected]);
-    router.push(`/tests/${session.id}`);
+  // 장비 저장 (신규/수정)
+  async function handleSave(data: DeviceCreate) {
+    if (editTarget) {
+      // 수정
+      await api.updateDevice(editTarget.id, data);
+    } else {
+      // 신규
+      await api.createDevice(data);
+    }
+    await loadDevices();
   }
 
-  const selArr   = [...selected];
-  const canTest  = selected.size >= 2;
-  const okCount  = [...devices].filter((d) => health.get(d.id)?.status === "ok").length;
-  const failCount= [...devices].filter((d) => health.get(d.id)?.status === "fail").length;
+  // 장비 삭제
+  async function handleDelete(device: Device) {
+    if (!confirm(`"${device.name}" 를 삭제하시겠습니까?`)) return;
+    try {
+      await api.deleteDevice(device.id);
+      await loadDevices();
+    } catch (err: unknown) {
+      alert(`삭제 실패: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  const okCount  = [...devices].filter((d) => health.get(d.id)?.status === "online").length;
+  const failCount= [...devices].filter((d) => health.get(d.id)?.status === "offline").length;
 
   return (
     <>
       <TopBar />
+
+      {/* ── 헬스 요약 바 ── */}
+      {health.size > 0 && (() => {
+        const vals = [...health.values()];
+        const ok      = vals.filter((h) => h.status === "online").length;
+        const fail    = vals.filter((h) => h.status === "offline").length;
+        const unknown = vals.filter((h) => h.status === "unknown").length;
+        return (
+          <div
+            style={{
+              position: "relative",
+              zIndex: 10,
+              borderBottom: "1px solid var(--color-wire)",
+              backgroundColor: "rgba(10,10,18,0.85)",
+              backdropFilter: "blur(8px)",
+              padding: "8px 24px",
+              display: "flex",
+              alignItems: "center",
+              gap: 24,
+              fontFamily: "var(--font-mono)",
+              fontSize: 11,
+              letterSpacing: "0.1em",
+            }}
+          >
+            <span style={{ color: "var(--color-haze)", textTransform: "uppercase" }}>
+              BACS STATUS
+            </span>
+            {[
+              { label: "ONLINE",  count: ok,      color: "var(--color-ok)"   },
+              { label: "OFFLINE", count: fail,    color: "var(--color-fail)" },
+              { label: "UNKNOWN", count: unknown, color: "var(--color-haze)" },
+            ].map(({ label, count, color }) => (
+              <span key={label} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                {/* 컬러 점 */}
+                <span
+                  style={{
+                    width: 7,
+                    height: 7,
+                    borderRadius: "50%",
+                    backgroundColor: color,
+                    display: "inline-block",
+                    boxShadow: count > 0 ? `0 0 6px ${color}` : "none",
+                  }}
+                />
+                <span style={{ color }}>{count}</span>
+                <span style={{ color: "var(--color-haze)", opacity: 0.6 }}>{label}</span>
+              </span>
+            ))}
+          </div>
+        );
+      })()}
+
+      {/* 장비 등록/수정 모달 */}
+      {modalOpen && (
+        <DeviceFormModal
+          initial={editTarget ?? null}
+          onSave={handleSave}
+          onClose={() => setEditTarget(undefined)}
+        />
+      )}
+
       <div
         style={{
           position: "relative",
@@ -107,8 +176,8 @@ export default function DevicesPage() {
             <div style={{ display: "flex", gap: 20, alignItems: "center", flexWrap: "wrap" }}>
               {[
                 { label: "전체",  value: devices.length, color: "var(--color-haze)" },
-                { label: "정상",  value: okCount,         color: "var(--color-ok)" },
-                { label: "장애",  value: failCount,        color: failCount > 0 ? "var(--color-fail)" : "var(--color-fog)" },
+                { label: "ONLINE",  value: okCount,   color: "var(--color-ok)" },
+                { label: "OFFLINE", value: failCount, color: failCount > 0 ? "var(--color-fail)" : "var(--color-fog)" },
               ].map(({ label, value, color }) => (
                 <div key={label} style={{ display: "flex", alignItems: "baseline", gap: 5 }}>
                   <span
@@ -150,6 +219,23 @@ export default function DevicesPage() {
 
           {/* 액션 버튼 */}
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            {/* 장비 등록 */}
+            <button
+              onClick={() => setEditTarget(null)}
+              style={{
+                padding: "8px 16px",
+                background: "none",
+                border: "1px solid var(--color-ok)",
+                fontFamily: "var(--font-mono)",
+                fontSize: 11,
+                letterSpacing: "0.08em",
+                color: "var(--color-ok)",
+                cursor: "pointer",
+              }}
+            >
+              + 장비 등록
+            </button>
+
             <button
               onClick={refresh}
               disabled={refreshing}
@@ -169,43 +255,7 @@ export default function DevicesPage() {
               {refreshing ? "갱신 중…" : "↻ 새로고침"}
             </button>
 
-            {canTest && (
-              <button
-                onClick={() => router.push(`/matrix?ids=${selArr.join(",")}`)}
-                style={{
-                  padding: "8px 14px",
-                  background: "none",
-                  border: "1px solid var(--color-accent)",
-                  fontFamily: "var(--font-mono)",
-                  fontSize: 11,
-                  letterSpacing: "0.08em",
-                  color: "var(--color-accent)",
-                  cursor: "pointer",
-                  transition: "background 0.12s",
-                }}
-              >
-                결과 매트릭스 →
-              </button>
-            )}
 
-            <button
-              onClick={startTest}
-              disabled={!canTest}
-              style={{
-                padding: "8px 20px",
-                background: canTest ? "var(--color-accent)" : "var(--color-edge)",
-                border: "none",
-                fontFamily: "var(--font-mono)",
-                fontSize: 11,
-                fontWeight: 700,
-                letterSpacing: "0.1em",
-                color: canTest ? "#fff" : "var(--color-fog)",
-                cursor: canTest ? "pointer" : "not-allowed",
-                transition: "background 0.18s",
-              }}
-            >
-              테스트 실행 {canTest ? `(${selected.size})` : ""}
-            </button>
           </div>
         </div>
 
@@ -213,10 +263,8 @@ export default function DevicesPage() {
         <DeviceGrid
           devices={devices}
           health={health}
-          selected={selected}
-          onToggle={toggle}
-          onSelectAll={addToSelection}
-          onClearAll={() => setSelected(new Set())}
+          onEdit={(device) => setEditTarget(device)}
+          onDelete={handleDelete}
         />
       </div>
     </>

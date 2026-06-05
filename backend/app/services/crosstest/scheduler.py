@@ -5,15 +5,15 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.models import BacsDevice, SessionStatus
 from app.repositories import device_repo, lock_repo, pair_repo, session_repo
+from app.services import packet_log
 from app.services.crosstest.device_locker import DeviceLocker
 from app.services.crosstest.runner import PairRunner, WorkItem
 
 
 def pick_next_dispatchable(pairs, locked_devices: set[int]):
+    """잠기지 않은 첫 번째 페어를 반환한다. 없으면 None."""
     for pair in pairs:
-        src = getattr(pair, "src_bacs_id", None) or getattr(pair, "src", None)
-        dst = getattr(pair, "dst_bacs_id", None) or getattr(pair, "dst", None)
-        if src in locked_devices or dst in locked_devices:
+        if pair.src_bacs_id in locked_devices or pair.dst_bacs_id in locked_devices:
             continue
         return pair
     return None
@@ -125,4 +125,8 @@ class CrossTestScheduler:
         async with self.session_factory() as db:
             await session_repo.mark_finished(db, session_id, SessionStatus.completed)
             await db.commit()
+        # 패킷 SSE 스트림을 닫도록 sentinel 투입 후 큐 정리
+        packet_log.publish_done(session_id)
+        # 즉시 삭제 대신 5분 후 해제 — SSE 클라이언트가 늦게 연결해도 히스토리 전달 가능
+        packet_log.schedule_cleanup(session_id)
         logger.info("crosstest.session.complete session={}", session_id)

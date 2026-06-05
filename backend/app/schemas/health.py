@@ -12,4 +12,3 @@ class HealthOut(BaseModel):
     last_checked_at: datetime | None
     last_ok_at: datetime | None
     last_error: str | None
-    consecutive_fail: int

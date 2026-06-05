@@ -1,29 +1,88 @@
 "use client";
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TopBar } from "@/components/TopBar";
 import { TestProgress } from "@/components/TestProgress";
-import { api } from "@/lib/api";
-import { Session } from "@/lib/types";
+import { PacketLog } from "@/components/PacketLog";
+import { Matrix } from "@/components/Matrix";
+import { api, getToken } from "@/lib/api";
+import { Device, MatrixCell, PacketEvent, Scenario, Session } from "@/lib/types";
 
 export default function TestPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: idParam } = use(params);
   const id = Number(idParam);
   const router = useRouter();
   const [session, setSession] = useState<Session | null>(null);
+  const [scenario, setScenario] = useState<Scenario | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const [packets, setPackets] = useState<PacketEvent[]>([]);
+  const [matrixCells, setMatrixCells] = useState<MatrixCell[]>([]);
+  const [matrixDevices, setMatrixDevices] = useState<Device[]>([]);
+  // 패킷 SSE 중복 방지용 ref
+  const packetSseRef = useRef<EventSource | null>(null);
 
+  // ── 시나리오 조회 — session.scenario_id 확정되면 해당 시나리오 이름 표시
   useEffect(() => {
-    let active = true;
-    async function poll() {
+    if (!session?.scenario_id) return;
+    api.scenarios().then((list) => {
+      const found = list.find((s) => s.id === session.scenario_id);
+      if (found) setScenario(found);
+    }).catch(() => { /* 무시 — 시나리오명은 부가정보 */ });
+  }, [session?.scenario_id]);
+
+  // ── 세션 완료 시 결과 매트릭스 로드
+  useEffect(() => {
+    if (!session || !["completed", "cancelled", "failed"].includes(session.status)) return;
+    if (session.device_ids.length === 0) return;
+    Promise.all([
+      api.matrix(session.device_ids),
+      api.devices(),
+    ]).then(([cells, allDevices]) => {
+      setMatrixCells(cells);
+      setMatrixDevices(allDevices.filter((d) => session.device_ids.includes(d.id)));
+    }).catch(() => { /* 무시 */ });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.status]);
+
+  // ── 세션 상태 SSE ────────────────────────────────────────────────────
+  useEffect(() => {
+    const token = getToken();
+    if (!token) return;
+    const sse = new EventSource(`/api/tests/${id}/stream?token=${encodeURIComponent(token)}`);
+    sse.onmessage = (e) => {
+      try { setSession(JSON.parse(e.data) as Session); } catch { /* ignore */ }
+    };
+    sse.addEventListener("done", () => sse.close());
+    sse.onerror = () => sse.close();
+    return () => sse.close();
+  }, [id]);
+
+  // ── 패킷 이벤트 SSE ─────────────────────────────────────────────────
+  useEffect(() => {
+    const token = getToken();
+    if (!token) return;
+    // 이미 연결 중이면 재연결하지 않음
+    if (packetSseRef.current) return;
+    const sse = new EventSource(`/api/tests/${id}/packets?token=${encodeURIComponent(token)}`);
+    packetSseRef.current = sse;
+    sse.onmessage = (e) => {
       try {
-        const s = await api.session(id);
-        if (active) setSession(s);
-      } catch { /* silently ignore */ }
-    }
-    poll();
-    const t = setInterval(poll, 3000);
-    return () => { active = false; clearInterval(t); };
+        const ev = JSON.parse(e.data) as PacketEvent;
+        setPackets((prev) => [...prev, ev]);
+      } catch { /* ignore */ }
+    };
+    sse.addEventListener("done", () => {
+      sse.close();
+      packetSseRef.current = null;
+    });
+    sse.onerror = () => {
+      sse.close();
+      packetSseRef.current = null;
+    };
+    return () => {
+      sse.close();
+      packetSseRef.current = null;
+    };
   }, [id]);
 
   async function cancel() {
@@ -60,6 +119,17 @@ export default function TestPage({ params }: { params: Promise<{ id: string }> }
             02// TEST SESSION
           </div>
 
+            {/* 시나리오명 표시 — scenario_id가 있는 세션의 경우 */}
+            {scenario && (
+              <div style={{
+                fontFamily: "var(--font-mono)", fontSize: 11,
+                color: "var(--color-fog)", letterSpacing: "0.06em",
+                marginBottom: 4,
+              }}>
+                시나리오: <span style={{ color: "var(--color-haze)", fontWeight: 600 }}>{scenario.name}</span>
+              </div>
+            )}
+
           <div
             style={{
               display: "flex",
@@ -71,7 +141,6 @@ export default function TestPage({ params }: { params: Promise<{ id: string }> }
           >
             <h1
               style={{
-                fontFamily: "var(--font-display)",
                 fontSize: 26,
                 fontWeight: 700,
                 color: "var(--color-snow)",
@@ -147,6 +216,36 @@ export default function TestPage({ params }: { params: Promise<{ id: string }> }
             세션 {id} 로딩 중…
           </div>
         )}
+
+        {/* 결과 매트릭스 — 세션 완료/취소/실패 시 인라인 표시 */}
+        {matrixCells.length > 0 && matrixDevices.length > 0 && (
+          <div className="panel-frame" style={{ padding: "20px 24px 24px", marginTop: 16 }}>
+            <div
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: 9,
+                letterSpacing: "0.14em",
+                textTransform: "uppercase",
+                color: "var(--color-fog)",
+                marginBottom: 12,
+              }}
+            >
+              결과 매트릭스
+            </div>
+            <Matrix devices={matrixDevices} cells={matrixCells} />
+          </div>
+        )}
+
+        {/* 패킷 로그 — TX/RX 패킷 상세 (BACS_Control.md §1.3) */}
+        <div
+          className="panel-frame"
+          style={{ padding: "20px 24px 24px", marginTop: 16 }}
+        >
+          <PacketLog
+            packets={packets}
+            isRunning={session?.status === "running"}
+          />
+        </div>
 
         {/* 뒤로 가기 */}
         <div style={{ marginTop: 20 }}>

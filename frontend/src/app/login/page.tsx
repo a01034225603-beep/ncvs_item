@@ -24,7 +24,7 @@ export default function LoginPage() {
     try {
       const { access_token } = await api.login(username, password);
       setToken(access_token);
-      router.push("/devices");
+      router.push("/");
     } catch {
       setError("인증 정보가 올바르지 않습니다.");
     } finally {

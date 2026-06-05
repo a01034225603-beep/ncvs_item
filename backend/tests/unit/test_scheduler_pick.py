@@ -5,9 +5,10 @@ from app.services.crosstest.scheduler import pick_next_dispatchable
 
 @dataclass
 class _P:
+    """실제 TestSessionPair 모델의 최소 서브셋 (테스트 전용)."""
     id: int
-    src: int
-    dst: int
+    src_bacs_id: int
+    dst_bacs_id: int
 
 
 def test_picks_first_pair_when_no_locks():

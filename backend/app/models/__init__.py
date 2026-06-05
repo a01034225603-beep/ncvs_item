@@ -7,6 +7,7 @@ from app.models.pair import (
     PairStatus,
     TestSessionPair,
 )
+from app.models.scenario import Scenario
 from app.models.session import SessionStatus, TestSession
 from app.models.user import User
 
@@ -22,4 +23,5 @@ __all__ = [
     "PairLatestResult",
     "PairLatestStatus",
     "DeviceLock",
+    "Scenario",
 ]

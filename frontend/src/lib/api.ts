@@ -32,10 +32,12 @@ export const api = {
   devices: () => request<import("./types").Device[]>("/devices"),
   health: () => request<import("./types").Health[]>("/devices/health"),
   refreshHealth: () => request<{ status: string }>("/health/refresh", { method: "POST" }),
-  startTest: (device_ids: number[]) =>
+  // ── 호출시험 ──
+  // POST /tests — scenario_id 기반으로 시험 세션 생성
+  startTest: (scenario_id: number) =>
     request<import("./types").Session>("/tests", {
       method: "POST",
-      body: JSON.stringify({ device_ids }),
+      body: JSON.stringify({ scenario_id }),
     }),
   session: (id: number) => request<import("./types").Session>(`/tests/${id}`),
   cancelSession: (id: number) =>
@@ -44,4 +46,44 @@ export const api = {
     const qs = deviceIds.map((id) => `device_ids=${id}`).join("&");
     return request<import("./types").MatrixCell[]>(`/pair-matrix?${qs}`);
   },
+
+  // ── 장비 CRUD ──
+  createDevice: (body: import("./types").DeviceCreate) =>
+    request<import("./types").Device>("/devices", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  updateDevice: (id: number, body: Partial<import("./types").DeviceCreate>) =>
+    request<import("./types").Device>(`/devices/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  deleteDevice: async (id: number): Promise<void> => {
+    const token = getToken();
+    const res = await fetch(`/api/devices/${id}`, {
+      method: "DELETE",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+  },
+
+  // ── 시나리오 CRUD ──
+  scenarios: () => request<import("./types").Scenario[]>("/scenarios"),
+  createScenario: (body: import("./types").ScenarioCreate) =>
+    request<import("./types").Scenario>("/scenarios", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  deleteScenario: (id: number) =>
+    fetch(`/api/scenarios/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${getToken()}` },
+    }),
+
+  // ── 시나리오별 최신 세션 조회 — 홈 화면 "이전 결과 보기" 용
+  latestSessionByScenario: async (scenarioId: number): Promise<import("./types").Session | null> => {
+    const list = await request<import("./types").Session[]>(`/tests?scenario_id=${scenarioId}`);
+    return list.length > 0 ? list[0] : null;
+  },
+
 };

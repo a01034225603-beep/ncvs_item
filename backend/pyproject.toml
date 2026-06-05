@@ -8,10 +8,12 @@ dependencies = [
   "sqlalchemy[asyncio]>=2.0",
   "aiomysql>=0.2",
   "alembic>=1.13",
+  "pymysql>=1.1",
   "pydantic>=2.6",
   "pydantic-settings>=2.2",
   "apscheduler>=3.10",
   "bcrypt>=4.0",
+  "cryptography>=42.0",
   "pyjwt>=2.8",
   "loguru>=0.7",
 ]
@@ -29,6 +31,9 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
 asyncio_default_test_loop_scope = "session"
 testpaths = ["tests"]
+markers = [
+    "real_device: 실제 BACS 장비 연결 환경에서만 실행 (BACS_REAL_IP 환경변수 필요)",
+]
 
 [tool.ruff]
 line-length = 100

@@ -3,6 +3,7 @@ from app.repositories import (
     health_repo,
     lock_repo,
     pair_repo,
+    scenario_repo,
     session_repo,
     user_repo,
 )
@@ -12,6 +13,7 @@ __all__ = [
     "health_repo",
     "lock_repo",
     "pair_repo",
+    "scenario_repo",
     "session_repo",
     "user_repo",
 ]

@@ -4,10 +4,10 @@ import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.models import BacsDevice, SessionStatus, TestSession, User
-from app.protocol.crosstest_proto import StubCrossTestProtocol
+from tests.simulator.stub_crosstest import StubCrossTestProtocol
 from app.services.crosstest.runner import PairRunner
 from app.services.crosstest.scheduler import CrossTestScheduler
-from app.services.session_service import create_session
+from app.services.session_service import create_session_from_scenario
 
 
 @pytest.mark.asyncio
@@ -23,8 +23,11 @@ async def test_full_crosstest_run_completes_all_pairs(engine, db_session):
         await db_session.refresh(d)
     await db_session.refresh(user)
 
-    ts = await create_session(
-        db_session, user_id=user.id, device_ids=[d.id for d in devices]
+    # 3대 모두 발신·수신 양방향 — permutations(3,2)=6쌍과 동일
+    ids = [d.id for d in devices]
+    ts = await create_session_from_scenario(
+        db_session, user_id=user.id,
+        sender_device_ids=ids, receiver_device_ids=ids,
     )
 
     factory = async_sessionmaker(engine, expire_on_commit=False)

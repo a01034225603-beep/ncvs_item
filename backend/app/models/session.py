@@ -20,6 +20,8 @@ class TestSession(Base):
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"))
+    # 시나리오 기반 시험일 경우 해당 시나리오 ID 저장 (NULL 허용 — 단독 세션 호환)
+    scenario_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("scenarios.id"), nullable=True)
     status: Mapped[SessionStatus] = mapped_column(Enum(SessionStatus), default=SessionStatus.queued)
     device_ids: Mapped[list[int]] = mapped_column(JSON, nullable=False)
     total_pairs: Mapped[int] = mapped_column(Integer, default=0)

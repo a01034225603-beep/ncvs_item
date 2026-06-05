@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,14 +7,20 @@ from app.models import SessionStatus, TestSession
 
 
 async def create(
-    session: AsyncSession, *, user_id: int, device_ids: list[int], total_pairs: int
+    session: AsyncSession,
+    *,
+    user_id: int,
+    device_ids: list[int],
+    total_pairs: int,
+    scenario_id: int | None = None,
 ) -> TestSession:
     obj = TestSession(
         user_id=user_id,
+        scenario_id=scenario_id,
         device_ids=device_ids,
         total_pairs=total_pairs,
         status=SessionStatus.queued,
-        started_at=datetime.utcnow(),
+        started_at=datetime.now(timezone.utc),
     )
     session.add(obj)
     await session.flush()
@@ -23,6 +29,24 @@ async def create(
 
 async def get(session: AsyncSession, session_id: int) -> TestSession | None:
     return await session.get(TestSession, session_id)
+
+
+async def list_all(session: AsyncSession) -> list[TestSession]:
+    """전체 세션 목록 (최신순)"""
+    result = await session.execute(
+        select(TestSession).order_by(TestSession.id.desc())
+    )
+    return list(result.scalars().all())
+
+
+async def list_by_scenario(session: AsyncSession, scenario_id: int) -> list[TestSession]:
+    """시나리오 ID 기준 세션 목록 (최신순)"""
+    result = await session.execute(
+        select(TestSession)
+        .where(TestSession.scenario_id == scenario_id)
+        .order_by(TestSession.id.desc())
+    )
+    return list(result.scalars().all())
 
 
 async def list_active(session: AsyncSession) -> list[TestSession]:
@@ -46,7 +70,7 @@ async def mark_finished(
     obj = await session.get(TestSession, session_id)
     if obj is not None:
         obj.status = status
-        obj.finished_at = datetime.utcnow()
+        obj.finished_at = datetime.now(timezone.utc)
 
 
 async def increment_counters(

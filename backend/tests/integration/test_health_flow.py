@@ -19,13 +19,13 @@ async def test_health_check_marks_responding_device_ok(db_session):
 
         health = await db_session.get(DeviceHealth, device.id)
         assert health is not None
-        assert health.status == HealthStatus.ok
+        assert health.status == HealthStatus.online
     finally:
         transport.close()
 
 
 @pytest.mark.asyncio
-async def test_health_check_marks_unreachable_device_fail(db_session):
+async def test_health_check_marks_unreachable_device_offline(db_session):
     device = BacsDevice(name="dead", node_id=0, ip_address="127.0.0.1", udp_port=1)
     db_session.add(device)
     await db_session.commit()
@@ -35,4 +35,4 @@ async def test_health_check_marks_unreachable_device_fail(db_session):
     await svc.run_once(db_session)
 
     health = await db_session.get(DeviceHealth, device.id)
-    assert health.status == HealthStatus.fail
+    assert health.status == HealthStatus.offline

@@ -12,10 +12,10 @@ from app.models import (
     TestSessionPair,
     User,
 )
-from app.protocol.crosstest_proto import StubCrossTestProtocol
+from tests.simulator.stub_crosstest import StubCrossTestProtocol
 from app.services.crosstest.runner import PairRunner
 from app.services.crosstest.scheduler import CrossTestScheduler
-from app.services.session_service import create_session
+from app.services.session_service import create_session_from_scenario
 
 
 @pytest.mark.asyncio
@@ -32,11 +32,16 @@ async def test_overlapping_sessions_never_share_device_simultaneously(engine, db
     await db_session.refresh(user)
 
     # Session A: devices 0,1  ; Session B: devices 1,2  (device 1 overlaps)
-    sa = await create_session(
-        db_session, user_id=user.id, device_ids=[devices[0].id, devices[1].id]
+    # 양방향 2쌍 (0→1, 1→0) / (1→2, 2→1)
+    sa = await create_session_from_scenario(
+        db_session, user_id=user.id,
+        sender_device_ids=[devices[0].id, devices[1].id],
+        receiver_device_ids=[devices[0].id, devices[1].id],
     )
-    sb = await create_session(
-        db_session, user_id=user.id, device_ids=[devices[1].id, devices[2].id]
+    sb = await create_session_from_scenario(
+        db_session, user_id=user.id,
+        sender_device_ids=[devices[1].id, devices[2].id],
+        receiver_device_ids=[devices[1].id, devices[2].id],
     )
 
     factory = async_sessionmaker(engine, expire_on_commit=False)

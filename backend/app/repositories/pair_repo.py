@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -45,11 +45,23 @@ async def list_running(session: AsyncSession, session_id: int) -> list[TestSessi
     return list(result.scalars().all())
 
 
+async def list_all_for_session(
+    session: AsyncSession, session_id: int
+) -> list[TestSessionPair]:
+    """세션의 전체 페어 목록을 상태 무관하게 반환한다 (SSE 진행 현황 조회용)."""
+    result = await session.execute(
+        select(TestSessionPair).where(
+            TestSessionPair.session_id == session_id,
+        )
+    )
+    return list(result.scalars().all())
+
+
 async def mark_running(session: AsyncSession, pair_id: int) -> None:
     obj = await session.get(TestSessionPair, pair_id)
     if obj is not None:
         obj.status = PairStatus.running
-        obj.started_at = datetime.utcnow()
+        obj.started_at = datetime.now(timezone.utc)
 
 
 async def mark_result(
@@ -59,7 +71,7 @@ async def mark_result(
     if obj is None:
         return
     obj.status = PairStatus.ok if ok else PairStatus.fail
-    obj.finished_at = datetime.utcnow()
+    obj.finished_at = datetime.now(timezone.utc)
     obj.error_message = error
 
 
@@ -74,7 +86,7 @@ async def upsert_latest(
 ) -> None:
     existing = await session.get(PairLatestResult, (src_bacs_id, dst_bacs_id))
     status = PairLatestStatus.ok if ok else PairLatestStatus.fail
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     if existing is None:
         session.add(
             PairLatestResult(

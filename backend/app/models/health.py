@@ -8,8 +8,8 @@ from app.db import Base
 
 
 class HealthStatus(str, PyEnum):
-    ok = "ok"
-    fail = "fail"
+    online  = "online"
+    offline = "offline"
     unknown = "unknown"
 
 

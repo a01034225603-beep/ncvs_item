@@ -11,7 +11,7 @@ class DeviceLock(Base):
     __tablename__ = "device_locks"
 
     bacs_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("bacs_devices.id"), primary_key=True
+        BigInteger, ForeignKey("bacs_devices.id", ondelete="CASCADE"), primary_key=True
     )
     session_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("test_sessions.id"))
     acquired_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

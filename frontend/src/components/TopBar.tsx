@@ -5,7 +5,9 @@ import { clearToken } from "@/lib/api";
 import { useTheme } from "@/lib/theme";
 
 const NAV = [
+  { href: "/",        label: "홈" },
   { href: "/devices", label: "장비 목록" },
+  { href: "/tests",   label: "시나리오 등록" },
   { href: "/matrix",  label: "호시험 결과" },
 ];
 
@@ -57,7 +59,7 @@ export function TopBar() {
 
         <nav style={{ display: "flex", height: "100%" }}>
           {NAV.map(({ href, label }) => {
-            const active = pathname === href || pathname.startsWith(href + "/");
+            const active = href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(href + "/");
             return (
               <Link
                 key={href}
