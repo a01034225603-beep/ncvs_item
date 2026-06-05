@@ -7,8 +7,8 @@ import { useTheme } from "@/lib/theme";
 const NAV = [
   { href: "/",        label: "홈" },
   { href: "/devices", label: "장비 목록" },
-  { href: "/tests",   label: "시나리오 등록" },
-  { href: "/matrix",  label: "호시험 결과" },
+  { href: "/tests",   label: "호출시험 계획" },
+  { href: "/matrix",  label: "호출시험 결과" },
 ];
 
 export function TopBar() {
