@@ -59,12 +59,31 @@ class PairRunner:
         except Exception as exc:  # noqa: BLE001
             result = PairResult(ok=False, error_message=str(exc)[:255])
 
-        # ── 결과 기록 (데드락으로 실패해도 lock 해제는 반드시 수행) ─────
+        # ── 트랜잭션 1: 페어 상태 확정 (ok/fail) — 반드시 성공해야 함 ──────
+        # increment_counters 와 분리된 독립 세션으로 실행.
+        # 이 트랜잭션이 롤백되면 pair.status 가 "running" 에 고착되어
+        # 프론트엔드에 "영원히 실행 중" 으로 표시되는 버그가 발생하므로
+        # 재시도 로직을 포함한다.
+        for _attempt in range(3):
+            try:
+                async with self.session_factory() as db:
+                    await pair_repo.mark_result(
+                        db, item.pair_id, ok=result.ok, error=result.error_message
+                    )
+                    await db.commit()
+                break  # 성공 시 재시도 루프 탈출
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(
+                    "crosstest.pair.mark_result_retry attempt={} session={} pair={} err={}",
+                    _attempt + 1, item.session_id, item.pair_id, exc,
+                )
+                await asyncio.sleep(0.1 * (_attempt + 1))  # 지수 백오프
+
+        # ── 트랜잭션 2: 최신 결과 갱신 + 세션 카운터 증분 ────────────────
+        # 원자적 UPDATE SQL 사용으로 데드락 확률이 낮지만, 실패해도
+        # pair 상태(트랜잭션 1)에는 영향 없음 — 통계 오차만 발생
         try:
             async with self.session_factory() as db:
-                await pair_repo.mark_result(
-                    db, item.pair_id, ok=result.ok, error=result.error_message
-                )
                 await pair_repo.upsert_latest(
                     db,
                     src_bacs_id=item.src_id,
@@ -73,18 +92,16 @@ class PairRunner:
                     error=result.error_message,
                     session_id=item.session_id,
                 )
-                # 원자적 증분 SQL — 동시 다수 완료 시 데드락 방지
                 await session_repo.increment_counters(db, item.session_id, ok=result.ok)
                 await db.commit()
         except Exception as exc:  # noqa: BLE001
-            # 결과 기록 실패는 로그만 남기고 lock 해제는 반드시 진행
             logger.warning(
-                "crosstest.pair.result_save_failed session={} pair={} err={}",
+                "crosstest.pair.stats_save_failed session={} pair={} err={}",
                 item.session_id, item.pair_id, exc,
             )
         finally:
-            # device_locks 해제는 메인 트랜잭션과 완전히 분리된 독립 세션
-            # — 메인 트랜잭션 데드락 롤백 시에도 고아 잠금 레코드 방지
+            # ── 트랜잭션 3: device_locks 해제 — 항상 실행 ────────────────
+            # 앞선 트랜잭션 실패와 무관하게 잠금은 반드시 해제한다.
             async with self.session_factory() as db:
                 await lock_repo.remove(db, item.src_id)
                 await lock_repo.remove(db, item.dst_id)
