@@ -1,4 +1,5 @@
 "use client";
+/** 홈 화면(/) - 시나리오 목록, 호출시험 시작, 이전 결과 보기 진입점. 비로그인시 /login 으로 리다이렉트. */
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TopBar } from "@/components/TopBar";

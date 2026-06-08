@@ -1,3 +1,11 @@
+"""
+호출시험 페어 ORM 모델
+
+역할:
+  TestSessionPair: 세션 안 각 발신-착신 장비 쌍(1회 호출 단위)의 실행 상태 기록.
+  PairLatestResult: 발신-착신 장비 쌍의 가장 최근 호출시험 결과 요약.
+                   UI 결과 화면에서 최신 상태를 빠르게 보여주기 위해 사용한다.
+"""
 from datetime import datetime
 from enum import Enum as PyEnum
 

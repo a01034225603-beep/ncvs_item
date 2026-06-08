@@ -1,4 +1,5 @@
 "use client";
+/** 호출시험 실행 화면(/call-test) - 세션 시작, SSE 2채널(stream+packets) 구독, 라운드 진행 현황 표시. */
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { TopBar } from "@/components/TopBar";

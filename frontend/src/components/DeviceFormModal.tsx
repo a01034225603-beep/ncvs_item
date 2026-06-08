@@ -1,3 +1,11 @@
+/**
+ * 장비 등록/수정 모달 폼 컴포넌트
+ *
+ * 역할:
+ *   BACS 장비의 신규 등록 또는 기존 장비 수정 폼을 모달 팝업으로 제공한다.
+ *   입력 항목: 이름, IP, TCP/UDP 포트, 위치(시도/시군구), 전화번호(Port 0-3)
+ *   devices/page.tsx 에서 등록/수정 버튼 클릭 시 열린다.
+ */
 "use client";
 import { useEffect, useState } from "react";
 import { Device, DeviceCreate } from "@/lib/types";

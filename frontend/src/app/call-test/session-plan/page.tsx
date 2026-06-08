@@ -1,4 +1,5 @@
 "use client";
+/** 세션 계획 상세(/call-test/session-plan) - 실행 예정 페어 전체 목록과 포트별 전화번호 사전 확인. */
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { TopBar } from "@/components/TopBar";

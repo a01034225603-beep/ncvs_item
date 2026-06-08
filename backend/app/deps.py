@@ -1,3 +1,11 @@
+"""
+FastAPI 의존성 주입(Dependency Injection) 모듈.
+
+역할:
+  - get_current_user(): Authorization 헤더의 JWT 토큰을 검증하고
+    현재 로그인 사용자 객체를 반환한다.
+  - 모든 보호된 API 엔드포인트에서 Depends(get_current_user) 로 사용된다.
+"""
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jwt import InvalidTokenError
@@ -8,6 +16,7 @@ from app.models import User
 from app.repositories import user_repo
 from app.security import decode_access_token
 
+# Bearer 토큰 방식 인증 스키마 — /auth/login 에서 발급된 토큰을 사용
 oauth2 = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 

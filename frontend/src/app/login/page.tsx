@@ -1,4 +1,5 @@
 "use client";
+/** 로그인 페이지(/login) - JWT 발급 후 홈으로 이동. 이미 로그인된 상태면 홈으로 자동 리다이렉트. */
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api, setToken } from "@/lib/api";

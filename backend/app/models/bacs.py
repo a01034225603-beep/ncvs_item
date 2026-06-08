@@ -1,3 +1,13 @@
+"""
+BACS 장비 ORM 모델 — bacs_devices 테이블
+
+역할:
+  활성 헬스체크 대상 BACS 장비 정보를 저장한다.
+  포트 정보:
+    port0, port1 = 발신(TX) 역할 수행 포트
+    port2, port3 = 착신(RX) 역할 수행 포트
+  지도 정보 (sido/sigungu/geo_x/geo_y)는 보안맞보 목적으로 사용한다.
+"""
 from datetime import datetime
 
 from sqlalchemy import BigInteger, Boolean, DateTime, Float, Integer, String, UniqueConstraint

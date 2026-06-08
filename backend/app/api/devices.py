@@ -1,3 +1,13 @@
+"""
+BACS 장비 CRUD API 라우터 — /devices
+
+엔드포인트:
+  GET    /devices          — 등록된 장비 전체 목록 조회
+  POST   /devices          — 새 장비 등록
+  PUT    /devices/{id}     — 장비 정보 수정
+  DELETE /devices/{id}     — 장비 삭제
+  GET    /devices/health   — 전체 장비의 UDP 헬스체크 최신 상태 조회
+"""
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 

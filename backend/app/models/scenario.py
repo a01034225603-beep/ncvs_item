@@ -1,3 +1,11 @@
+"""
+호출시험 시나리오 ORM 모델 - scenarios 테이블
+
+역할:
+  호출시험에서 사용할 발신(sender) 장비 목록과
+  착신(receiver) 장비 목록의 조합을 이름을 붙여 저장한다.
+  시나리오 실행 시 session_service 가 sender x receiver 페어를 생성한다.
+"""
 from datetime import datetime, timezone
 
 import sqlalchemy as sa

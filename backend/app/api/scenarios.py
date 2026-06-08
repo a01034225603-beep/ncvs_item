@@ -1,3 +1,16 @@
+"""
+호출시험 시나리오 CRUD API 라우터 — /scenarios
+
+엔드포인트:
+  GET    /scenarios       — 시나리오 전체 목록
+  GET    /scenarios/{id}  — 특정 시나리오 조회
+  POST   /scenarios       — 새 시나리오 등록 (발신/착신 장비 ID 조합 저장)
+  PATCH  /scenarios/{id}  — 시나리오 수정
+  DELETE /scenarios/{id}  — 시나리오 삭제
+
+시나리오 = 호출시험에서 사용할 '(sender 장비 목록) × (receiver 장비 목록)' 조합.
+시나리오 실행 요청 시 session_service 가 페어를 생성하고 스케줄러에 등록한다.
+"""
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 

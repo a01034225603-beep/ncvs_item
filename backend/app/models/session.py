@@ -1,3 +1,12 @@
+"""
+호출시험 세션 ORM 모델 - test_sessions 테이블
+
+역할:
+  한 번의 호출시험 실행 단위를 표현한다.
+  상태 흐름: queued -> running -> completed / cancelled / failed
+  total_pairs: 이 세션에서 실행할 전체 페어 수
+  done_pairs, ok_pairs, fail_pairs: 실시간 진행 카운터
+"""
 from datetime import datetime
 from enum import Enum as PyEnum
 

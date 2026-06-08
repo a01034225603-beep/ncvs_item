@@ -1,3 +1,16 @@
+"""
+호출시험 세션 생성 서비스.
+
+역할:
+  create_session_from_scenario():
+    시나리오의 sender x receiver 장비 조합으로 페어를 생성하고
+    DB에 TestSession + TestSessionPair 행을 삽입한 후 반환한다.
+    실행은 CrossTestScheduler 에 위임하며 이 함수는 생성만 담당한다.
+
+  cancel_session():
+    세션 상태를 cancelled 로 변경한다.
+    실제 실행 중단은 scheduler 루프가 다음 순회 시 감지하여 처리한다.
+"""
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import SessionStatus, TestSession

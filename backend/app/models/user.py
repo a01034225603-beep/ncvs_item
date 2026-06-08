@@ -1,3 +1,11 @@
+"""
+관리자 계정 ORM 모델 - users 테이블
+
+역할:
+  시스템 로그인 계정을 저장한다.
+  비밀번호는 bcrypt 해시로 저장되며 평문은 절대 저장하지 않는다.
+  초기 계정은 app/cli/seed.py 로 생성한다.
+"""
 from datetime import datetime
 
 from sqlalchemy import BigInteger, DateTime, String

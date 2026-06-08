@@ -1,3 +1,17 @@
+/**
+ * 프로젝트 공용 TypeScript 타입 정의 모듈
+ *
+ * 역할:
+ *   프론트엔드 전체에서 사용하는 데이터 타입을 한 곳에 정의한다.
+ *   백엔드 Pydantic 스키마(schemas/)와 1:1 대응하며,
+ *   API 응답 파싱과 컴포넌트 props 타입에 함께 사용된다.
+ *
+ *   주요 타입:
+ *     Device       - BACS 장비 정보
+ *     Session      - 호출시험 세션
+ *     PairStatus   - 페어 실행 상태 (pending/running/ok/fail/skipped)
+ *     PacketEvent  - 실시간 TCP 패킷 로그 이벤트 (SSE)
+ */
 export type HealthStatus = "online" | "offline" | "unknown";
 export type SessionStatus = "queued" | "running" | "completed" | "cancelled" | "failed";
 export type PairStatus = "pending" | "running" | "ok" | "fail" | "skipped";

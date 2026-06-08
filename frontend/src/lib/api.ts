@@ -1,3 +1,14 @@
+/**
+ * API 클라이언트 모듈
+ *
+ * 역할:
+ *   백엔드 REST API 호출 함수를 모아놓은 단일 진입점.
+ *   모든 요청은 Next.js 프록시(/api)를 통해 전달되며
+ *   localStorage 에 저장된 JWT 토큰을 Authorization 헤더에 자동 첨부한다.
+ *
+ *   getToken/setToken/clearToken: localStorage 토큰 관리 유틸리티
+ *   api 객체: 화면 컴포넌트에서 직접 호출하는 모든 API 함수 모음
+ */
 const TOKEN_KEY = "ncvs_token";
 
 export function setToken(token: string) {

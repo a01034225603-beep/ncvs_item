@@ -1,4 +1,5 @@
 "use client";
+/** 시나리오 빌더 페이지(/tests) - 드래그&드롭으로 장비 그룹 구성, 라운드 계산, 시나리오 등록. */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TopBar } from "@/components/TopBar";

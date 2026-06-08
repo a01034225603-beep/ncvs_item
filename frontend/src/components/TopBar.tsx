@@ -1,3 +1,12 @@
+/**
+ * 상단 네비게이션 바 컴포넌트
+ *
+ * 역할:
+ *   - 앱 이름 표시 및 홈(/) 이동 링크
+ *   - 현재 페이지 경로에 따른 활성 메뉴 하이라이트
+ *   - 다크/라이트 테마 전환 버튼
+ *   - 모든 페이지 layout.tsx 에서 공통으로 사용된다.
+ */
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";

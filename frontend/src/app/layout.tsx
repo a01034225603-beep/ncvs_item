@@ -1,3 +1,11 @@
+/**
+ * Next.js 루트 레이아웃
+ *
+ * 역할:
+ *   - 모든 페이지를 감싸는 최상위 레이아웃이다.
+ *   - ThemeProvider 를 통해 전체 앱에 테마 컨텍스트를 제공한다.
+ *   - globals.css 의 CSS 변수 기반 디자인 시스템을 적용한다.
+ */
 import type { Metadata } from "next";
 import { Space_Mono, Manrope, JetBrains_Mono } from "next/font/google";
 import { ThemeProvider } from "@/lib/theme";

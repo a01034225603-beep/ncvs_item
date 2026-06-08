@@ -1,3 +1,11 @@
+/**
+ * 실시간 TCP 패킷 로그 컴포넌트
+ *
+ * 역할:
+ *   호출시험 진행 중 백엔드 SSE(/tests/{id}/packets)로 수신한
+ *   패킷 이벤트(PacketEvent[])를 시각적으로 표시한다.
+ *   TX(송신)/RX(수신) 방향, 프로토콜 단계, hex dump, 파싱 결과를 한 줄씩 보여준다.
+ */
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { PacketEvent } from "@/lib/types";

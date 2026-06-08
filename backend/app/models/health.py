@@ -1,3 +1,11 @@
+"""
+DeviceHealth ORM 모델 - health_records 테이블
+
+역할:
+  BACS 장비별 UDP 헬스체크 결과를 저장한다.
+  장비 1대당 1개 행이며 upsert 방식으로 갱신된다 (가장 최신 결과만 유지).
+  status: online(응답 정상) / offline(타임아웃 또는 오류)
+"""
 from datetime import datetime
 from enum import Enum as PyEnum
 

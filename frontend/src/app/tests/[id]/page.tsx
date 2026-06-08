@@ -1,4 +1,5 @@
 "use client";
+/** 호출시험 결과 페이지(/tests/[id]) - TestProgress + 페어 결과 테이블 + MapTopology 망도 + PacketLog. */
 import { use, useEffect, useRef, useState } from "react";
 import { TopBar } from "@/components/TopBar";
 import { TestProgress } from "@/components/TestProgress";

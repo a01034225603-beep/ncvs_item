@@ -1,3 +1,12 @@
+"""
+UDP 헬스체크 서비스 모듈.
+
+역할:
+  - DB 에서 enabled=True 인 BACS 장비 목록을 가져와 UDP heartbeat 상태를 주기적으로 확인한다.
+  - ONLINE(응답 정상) / OFFLINE(타임아웃/네트워크 에러) 상태를 health_records 테이블에 upsert 한다.
+  - main.py 에서 APScheduler 로 60초 주기로 등록되는 주기 작업이다.
+  - concurrency: asyncio.Semaphore 로 적얹 동시 UDP 쾼리 수 제한 (config: HEALTH_CHECK_CONCURRENCY).
+"""
 import asyncio
 from datetime import datetime, timezone
 

@@ -1,3 +1,11 @@
+"""
+인증·보안 유틸리티 모듈.
+
+역할:
+  - 비밀번호 bcrypt 해시/검증
+  - JWT 액세스 토큰 생성/디코드
+  - config.py 의 JWT_SECRET, JWT_ALGORITHM, JWT_EXPIRE_MINUTES 설정을 사용한다.
+"""
 from datetime import datetime, timedelta, timezone
 
 import bcrypt

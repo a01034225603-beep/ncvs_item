@@ -1,3 +1,11 @@
+"""
+Device Lock 리포지토리 - device_locks 테이블
+
+제공 함수:
+  add()       - 장비 잠금 레코드 추가 (호출시험 페어 시작 시)
+  remove()    - 장비 잠금 해제 (호출시험 페어 완료 시)
+  clear_all() - 전체 잠금 초기화 (서버 재시작 시 cleanup)
+"""
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 

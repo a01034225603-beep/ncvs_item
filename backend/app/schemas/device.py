@@ -1,3 +1,10 @@
+"""
+BACS 장비 API 요청/응답 스키마.
+
+DeviceOut:    GET /devices 응답 (전체 필드 포함)
+DeviceCreate: POST /devices 요청 body
+DeviceUpdate: PUT /devices/{id} 요청 body (전체 필드 optional)
+"""
 import re
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator

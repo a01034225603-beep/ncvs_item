@@ -1,4 +1,5 @@
 "use client";
+/** 장비 관리 페이지(/devices) - BACS 장비 CRUD + DeviceFormModal + 헬스체크 새로고침. */
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TopBar } from "@/components/TopBar";

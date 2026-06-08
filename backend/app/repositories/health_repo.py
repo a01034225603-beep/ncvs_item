@@ -1,3 +1,10 @@
+"""
+UDP 헬스체크 결과 리포지토리 - health_records 테이블
+
+제공 함수:
+  upsert()      - 장비별 최신 헬스체크 결과를 insert or update
+  list_all()    - 전체 헬스체크 결과 조회
+"""
 from datetime import datetime
 
 from sqlalchemy import select

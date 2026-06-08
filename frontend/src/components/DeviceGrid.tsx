@@ -1,3 +1,11 @@
+/**
+ * BACS 장비 목록 테이블 컴포넌트
+ *
+ * 역할:
+ *   등록된 BACS 장비를 표 형태로 표시하며 편집/삭제 기능을 제공한다.
+ *   각 행: 이름, IP, 포트, 위치(시도/시군구), 헬스 상태, 전화번호 설정 상태
+ *   devices/page.tsx 에서 사용된다.
+ */
 "use client";
 import { useMemo, useState } from "react";
 import { Device, Health, HealthStatus } from "@/lib/types";

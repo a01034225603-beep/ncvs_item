@@ -1,3 +1,11 @@
+/**
+ * 호출시험 결과 망도(Network Topology) 컴포넌트
+ *
+ * 역할:
+ *   KoreaMap SVG 위에 호출시험 결과(MatrixCell[])를 겹쳐 표시한다.
+ *   장비 위치 마커와 발신->착신 연결선 색상으로 ok/fail 결과를 시각화한다.
+ *   tests/[id]/page.tsx(결과 화면)에서 사용된다.
+ */
 "use client";
 
 /**

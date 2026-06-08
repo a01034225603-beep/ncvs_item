@@ -1,3 +1,12 @@
+/**
+ * 호출시험 세션 진행 상태 요약 컴포넌트
+ *
+ * 역할:
+ *   Session 객체를 받아 진행률 바(progress bar)와 상태 정보를 표시한다.
+ *   tests/[id]/page.tsx(결과 화면)에서 세션 개요 표시에 사용된다.
+ *
+ *   표시 항목: 세션 상태, 진행률 %, done/ok/fail 페어 수, 시작/완료 시각
+ */
 import { Session } from "@/lib/types";
 
 const STATUS_CFG: Record<string, { color: string; bg: string; border: string }> = {

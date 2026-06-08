@@ -1,3 +1,13 @@
+"""
+BACS 장비 CRUD 리포지토리 - bacs_devices 테이블
+
+제공 함수:
+  list_all()        - 전체 장비 목록
+  list_enabled()    - enabled=True 장비만 (헬스체크 대상)
+  get()             - ID로 단일 장비 조회
+  get_by_ids()      - ID 목록으로 다수 조회 (호출시험 페어 실행 시 사용)
+  create/update/delete() - CRUD
+"""
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 

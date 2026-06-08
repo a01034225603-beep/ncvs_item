@@ -1,3 +1,10 @@
+/**
+ * BACS 장비 헬스 상태 배지 컴포넌트
+ *
+ * 역할:
+ *   online/offline/unknown 상태를 색상 점(dot)과 텍스트로 표시한다.
+ *   DeviceGrid 에서 각 장비 행의 상태 컬럼에 사용된다.
+ */
 import { HealthStatus } from "@/lib/types";
 
 const CFG: Record<HealthStatus, { dot: string; text: string; label: string }> = {
