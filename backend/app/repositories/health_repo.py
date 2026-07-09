@@ -1,10 +1,3 @@
-"""
-UDP 헬스체크 결과 리포지토리 - health_records 테이블
-
-제공 함수:
-  upsert()      - 장비별 최신 헬스체크 결과를 insert or update
-  list_all()    - 전체 헬스체크 결과 조회
-"""
 from datetime import datetime
 
 from sqlalchemy import select
@@ -46,3 +39,21 @@ async def upsert(
 async def list_all(session: AsyncSession) -> list[DeviceHealth]:
     result = await session.execute(select(DeviceHealth))
     return list(result.scalars().all())
+
+
+async def get_offline_ids(
+    session: AsyncSession, device_ids: list[int]
+) -> set[int]:
+    """주어진 장비 목록 중 OFFLINE 상태인 장비 ID 집합을 반환한다.
+
+    health 레코드가 없는 장비(미측정)는 OFFLINE 으로 간주하지 않는다.
+    """
+    if not device_ids:
+        return set()
+    result = await session.execute(
+        select(DeviceHealth).where(
+            DeviceHealth.bacs_id.in_(device_ids),
+            DeviceHealth.status == HealthStatus.offline,
+        )
+    )
+    return {row.bacs_id for row in result.scalars().all()}

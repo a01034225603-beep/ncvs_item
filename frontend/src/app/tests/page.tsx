@@ -1,18 +1,52 @@
 "use client";
-/** 시나리오 빌더 페이지(/tests) - 드래그&드롭으로 장비 그룹 구성, 라운드 계산, 시나리오 등록. */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TopBar } from "@/components/TopBar";
 import { api, getToken } from "@/lib/api";
 import { Device, Health } from "@/lib/types";
 
-/* ─── 세션 쌍 타입 + Vizing 라운드 계산 ─────────────────────────
- * computeRounds, Round, ROUND_COLORS 는 call-test 페이지와
- * 공유하므로 lib/rounds.ts 로 분리하여 import한다.
- */
-import { type Pair, type Round, computeRounds, ROUND_COLORS } from "@/lib/rounds";
+/* ─── 세션 쌍 타입 ──────────────────────────────────────────── */
+interface Pair { id: string; s: number; r: number }
 let pairSeq = 0;
 function mkPairId() { return `p${++pairSeq}`; }
+
+/* ─── Vizing 엣지 컬러링 알고리즘 ───────────────────────────────
+ * 방향 엣지 독립 처리: 같은 라운드에서 각 노드는
+ * 송신자(sender) 1번 + 수신자(receiver) 1번만 허용
+ * 입력: Pair[] / 출력: 라운드별 Pair 그룹
+ */
+interface Round { pairs: Pair[] }
+
+function computeRounds(pairs: Pair[]): Round[] {
+  const rounds: { senders: Set<number>; receivers: Set<number>; pairs: Pair[] }[] = [];
+  for (const pair of pairs) {
+    let placed = false;
+    for (const round of rounds) {
+      // 해당 라운드에서 이미 같은 송신자 혹은 같은 수신자가 있으면 배정 불가
+      if (!round.senders.has(pair.s) && !round.receivers.has(pair.r)) {
+        round.senders.add(pair.s);
+        round.receivers.add(pair.r);
+        round.pairs.push(pair);
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) {
+      rounds.push({
+        senders:   new Set([pair.s]),
+        receivers: new Set([pair.r]),
+        pairs:     [pair],
+      });
+    }
+  }
+  return rounds.map((r) => ({ pairs: r.pairs }));
+}
+
+/* 라운드별 강조 색상 (순환) */
+const ROUND_COLORS = [
+  "#5d9b94", "#e0a96d", "#8b8fce", "#c97b84",
+  "#6bbc7a", "#d4ae5c", "#7ab8de", "#b07ac9",
+];
 
 /* ─── 드래그 소스 태그 ────────────────────────────────────────── */
 /* 헬스 상태 색상 */
@@ -102,11 +136,15 @@ export default function ScenarioBuilderPage() {
   }, [router]);
 
   useEffect(() => {
-    api.devices().then(setDevices).catch(console.error);
+    api.devices().then(setDevices).catch((e) => {
+      setToast({ msg: e instanceof Error ? e.message : "장비 목록을 불러오지 못했습니다.", ok: false });
+    });
     /* UDP 헬스체크 결과 로드 (bacs_id = device.id) */
     api.health().then((list) => {
       setHealthMap(new Map(list.map((h) => [h.bacs_id, h.status])));
-    }).catch(console.error);
+    }).catch((e) => {
+      setToast({ msg: e instanceof Error ? e.message : "헬스 정보를 불러오지 못했습니다.", ok: false });
+    });
   }, []);
 
   const deviceMap = new Map(devices.map((d) => [d.id, d]));
@@ -434,10 +472,12 @@ export default function ScenarioBuilderPage() {
                           color: "var(--color-haze)",
                         }}
                       >
+                        <span style={{ color: "var(--color-ok)", fontSize: 9 }}>{`#${p.s}`}</span>
                         <span style={{ color: "var(--color-fog)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 60 }}>
                           {src?.name ?? `ID${p.s}`}
                         </span>
                         <span style={{ color: "var(--color-fog)", flexShrink: 0 }}>→</span>
+                        <span style={{ color: "var(--color-warn)", fontSize: 9 }}>{`#${p.r}`}</span>
                         <span style={{ color: "var(--color-fog)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 60 }}>
                           {dst?.name ?? `ID${p.r}`}
                         </span>

@@ -12,13 +12,28 @@ from app.models import (
 
 
 async def bulk_insert_pending(
-    session: AsyncSession, session_id: int, ordered_pairs: list[tuple[int, int]]
+    session: AsyncSession,
+    session_id: int,
+    ordered_pairs: list[tuple[int, int]],
+    *,
+    round_numbers: list[int] | None = None,
 ) -> None:
+    """페어 목록을 pending 상태로 일괄 삽입한다.
+
+    round_numbers 를 전달하면 각 페어에 라운드 번호를 부여한다.
+    전달하지 않으면 전부 round_number=1 로 저장된다.
+    """
+    if round_numbers is None:
+        round_numbers = [1] * len(ordered_pairs)
     session.add_all(
         TestSessionPair(
-            session_id=session_id, src_bacs_id=src, dst_bacs_id=dst, status=PairStatus.pending
+            session_id=session_id,
+            src_bacs_id=src,
+            dst_bacs_id=dst,
+            round_number=rn,
+            status=PairStatus.pending,
         )
-        for src, dst in ordered_pairs
+        for (src, dst), rn in zip(ordered_pairs, round_numbers)
     )
     await session.flush()
 
@@ -32,8 +47,8 @@ async def list_pending_for_session(
             TestSessionPair.session_id == session_id,
             TestSessionPair.status == PairStatus.pending,
         )
-        # 삽입 순서(id 오름차순)로 고정 — 비결정적 반환 방지
-        .order_by(TestSessionPair.id)
+        # 라운드 오름차순 → id 오름차순 고정 — 비결정적 반환 방지
+        .order_by(TestSessionPair.round_number, TestSessionPair.id)
     )
     return list(result.scalars().all())
 

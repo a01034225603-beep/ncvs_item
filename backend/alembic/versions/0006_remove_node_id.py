@@ -17,10 +17,22 @@ branch_labels = None
 depends_on = None
 
 
+def _is_sqlite() -> bool:
+    return op.get_bind().dialect.name == "sqlite"
+
+
 def upgrade() -> None:
-    # 혹시 컬럼이 남아 있을 경우를 위해 먼저 1로 일괄 업데이트 후 컬럼 제거
-    op.execute("UPDATE bacs_devices SET node_id = 1")
-    op.drop_column('bacs_devices', 'node_id')
+    # SQLite: batch_alter_table 사용 (DROP COLUMN 직접 미지원)
+    # MySQL: 기존 방식 유지 (UPDATE 후 drop_column)
+    if _is_sqlite():
+        with op.batch_alter_table('bacs_devices') as batch_op:
+            try:
+                batch_op.drop_column('node_id')
+            except Exception:  # noqa: BLE001
+                pass  # 컬럼이 이미 없으면 무시
+    else:
+        op.execute("UPDATE bacs_devices SET node_id = 1")
+        op.drop_column('bacs_devices', 'node_id')
 
 
 def downgrade() -> None:

@@ -1,5 +1,4 @@
 "use client";
-/** 홈 화면(/) - 시나리오 목록, 호출시험 시작, 이전 결과 보기 진입점. 비로그인시 /login 으로 리다이렉트. */
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TopBar } from "@/components/TopBar";
@@ -14,6 +13,7 @@ export default function HomePage() {
   const [devices, setDevices]     = useState<Device[]>([]);
   const [loading, setLoading]     = useState(true);
   const [deleting, setDeleting]   = useState<number | null>(null);
+  const [error, setError]         = useState<string | null>(null);
 
   /* 클라이언트에서 토큰 확인 (리다이렉트 없이 상태만 변경) */
   useEffect(() => {
@@ -25,6 +25,9 @@ export default function HomePage() {
       const [sc, dv] = await Promise.all([api.scenarios(), api.devices()]);
       setScenarios(sc);
       setDevices(dv);
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "데이터를 불러오지 못했습니다.");
     } finally {
       setLoading(false);
     }
@@ -126,6 +129,34 @@ export default function HomePage() {
   return (
     <>
       <TopBar />
+      {/* ── 에러 배너 ── */}
+      {error && (
+        <div
+          style={{
+            background: "rgba(180,60,60,0.15)",
+            border: "1px solid rgba(180,60,60,0.4)",
+            borderLeft: "3px solid #c0392b",
+            padding: "10px 24px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            fontFamily: "var(--font-mono)",
+            fontSize: 11,
+            color: "#e57373",
+            letterSpacing: "0.05em",
+          }}
+        >
+          <span>⚠ {error}</span>
+          <button
+            onClick={() => setError(null)}
+            style={{
+              background: "none", border: "none",
+              color: "var(--color-fog)", cursor: "pointer",
+              fontSize: 16, lineHeight: 1, padding: "0 4px",
+            }}
+          >×</button>
+        </div>
+      )}
       <div
         style={{
           maxWidth: 900,
@@ -295,29 +326,6 @@ export default function HomePage() {
                       <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--color-fog)" }}>
                         {createdAt}
                       </span>
-                      {/* 이전 결과 보기 */}
-                      <button
-                        onClick={async () => {
-                          const latest = await api.latestSessionByScenario(sc.id);
-                          if (latest) {
-                            router.push(`/tests/${latest.id}`);
-                          } else {
-                            alert("이전 시험 기록이 없습니다");
-                          }
-                        }}
-                        style={{
-                          padding: "2px 14px",
-                          background: "none",
-                          border: "1px solid var(--color-wire)",
-                          fontFamily: "var(--font-mono)",
-                          fontSize: 9,
-                          letterSpacing: "0.06em",
-                          color: "var(--color-fog)",
-                          cursor: "pointer",
-                        }}
-                      >
-                        이전 결과 →
-                      </button>
                       {/* 호출 시험 준비 화면으로 이동 */}
                       <button
                         onClick={() => router.push(`/call-test?scenario_id=${sc.id}`)}

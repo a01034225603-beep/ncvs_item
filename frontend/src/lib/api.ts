@@ -1,14 +1,3 @@
-/**
- * API 클라이언트 모듈
- *
- * 역할:
- *   백엔드 REST API 호출 함수를 모아놓은 단일 진입점.
- *   모든 요청은 Next.js 프록시(/api)를 통해 전달되며
- *   localStorage 에 저장된 JWT 토큰을 Authorization 헤더에 자동 첨부한다.
- *
- *   getToken/setToken/clearToken: localStorage 토큰 관리 유틸리티
- *   api 객체: 화면 컴포넌트에서 직접 호출하는 모든 API 함수 모음
- */
 const TOKEN_KEY = "ncvs_token";
 
 export function setToken(token: string) {
@@ -30,6 +19,11 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   };
   if (token) headers.Authorization = `Bearer ${token}`;
   const res = await fetch(`/api${path}`, { ...init, headers });
+  if (res.status === 401) {
+    clearToken();
+    if (typeof window !== "undefined") window.location.replace("/login");
+    throw new Error("인증이 만료되었습니다. 다시 로그인해 주세요.");
+  }
   if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
   return res.json() as Promise<T>;
 }
@@ -43,13 +37,6 @@ export const api = {
   devices: () => request<import("./types").Device[]>("/devices"),
   health: () => request<import("./types").Health[]>("/devices/health"),
   refreshHealth: () => request<{ status: string }>("/health/refresh", { method: "POST" }),
-  // ── 호출시험 ──
-  // POST /tests — scenario_id 기반으로 시험 세션 생성
-  startTest: (scenario_id: number) =>
-    request<import("./types").Session>("/tests", {
-      method: "POST",
-      body: JSON.stringify({ scenario_id }),
-    }),
   session: (id: number) => request<import("./types").Session>(`/tests/${id}`),
   cancelSession: (id: number) =>
     request<{ status: string }>(`/tests/${id}/cancel`, { method: "POST" }),
@@ -69,14 +56,13 @@ export const api = {
       method: "PUT",
       body: JSON.stringify(body),
     }),
-  deleteDevice: async (id: number): Promise<void> => {
-    const token = getToken();
-    const res = await fetch(`/api/devices/${id}`, {
+  deleteDevice: (id: number) =>
+    fetch(`/api/devices/${id}`, {
       method: "DELETE",
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
-    if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
-  },
+      headers: {
+        Authorization: `Bearer ${getToken()}`,
+      },
+    }),
 
   // ── 시나리오 CRUD ──
   scenarios: () => request<import("./types").Scenario[]>("/scenarios"),
@@ -91,10 +77,11 @@ export const api = {
       headers: { Authorization: `Bearer ${getToken()}` },
     }),
 
-  // ── 시나리오별 최신 세션 조회 — 홈 화면 "이전 결과 보기" 용
-  latestSessionByScenario: async (scenarioId: number): Promise<import("./types").Session | null> => {
-    const list = await request<import("./types").Session[]>(`/tests?scenario_id=${scenarioId}`);
-    return list.length > 0 ? list[0] : null;
-  },
+  // ── 테스트 세션 ── (TCP 확정 후 활성화 예정, 현재 서버 501 반환)
+  startTest: (scenarioId: number) =>
+    request<import("./types").Session>("/tests", {
+      method: "POST",
+      body: JSON.stringify({ scenario_id: scenarioId }),
+    }),
 
 };

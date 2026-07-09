@@ -13,6 +13,10 @@ branch_labels = None
 depends_on = None
 
 
+def _is_sqlite() -> bool:
+    return op.get_bind().dialect.name == "sqlite"
+
+
 def upgrade() -> None:
     op.add_column("bacs_devices", sa.Column("sido",    sa.String(32),  nullable=True))
     op.add_column("bacs_devices", sa.Column("sigungu", sa.String(64),  nullable=True))
@@ -21,7 +25,15 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_column("bacs_devices", "geo_y")
-    op.drop_column("bacs_devices", "geo_x")
-    op.drop_column("bacs_devices", "sigungu")
-    op.drop_column("bacs_devices", "sido")
+    # SQLite: batch_alter_table 사용 (DROP COLUMN 직접 미지원)
+    if _is_sqlite():
+        with op.batch_alter_table("bacs_devices") as batch_op:
+            batch_op.drop_column("geo_y")
+            batch_op.drop_column("geo_x")
+            batch_op.drop_column("sigungu")
+            batch_op.drop_column("sido")
+    else:
+        op.drop_column("bacs_devices", "geo_y")
+        op.drop_column("bacs_devices", "geo_x")
+        op.drop_column("bacs_devices", "sigungu")
+        op.drop_column("bacs_devices", "sido")

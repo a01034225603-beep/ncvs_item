@@ -16,7 +16,16 @@ branch_labels = None
 depends_on = None
 
 
+def _is_sqlite() -> bool:
+    return op.get_bind().dialect.name == "sqlite"
+
+
 def upgrade() -> None:
+    # SQLite는 FK constraint ALTER를 지원하지 않음
+    # (SQLite는 FK 강제 기본 비활성화, 여기서 skip해도 테스트에 영향 없음)
+    if _is_sqlite():
+        return
+
     # ── device_locks ──────────────────────────────────────────────
     op.drop_constraint('device_locks_ibfk_1', 'device_locks', type_='foreignkey')
     op.create_foreign_key(
@@ -55,6 +64,9 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    if _is_sqlite():
+        return
+
     # ── test_session_pairs ────────────────────────────────────────
     op.drop_constraint('test_session_pairs_ibfk_3', 'test_session_pairs', type_='foreignkey')
     op.create_foreign_key(

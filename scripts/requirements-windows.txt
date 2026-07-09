@@ -1,0 +1,18 @@
+# Windows Portable 패키지용 Python 의존성
+# aiomysql / pymysql 제외 (로컬은 SQLite 사용)
+# macOS 개발 머신에서 Windows wheel 사전 다운로드 시 사용:
+#   pip download --platform win_amd64 --python-version 312 \
+#     --only-binary :all: -r requirements-windows.txt -d ./wheels/
+
+fastapi>=0.110
+uvicorn[standard]>=0.27
+sqlalchemy[asyncio]>=2.0
+aiosqlite>=0.20
+alembic>=1.13
+pydantic>=2.6
+pydantic-settings>=2.2
+apscheduler>=3.10
+bcrypt>=4.0
+cryptography>=42.0
+pyjwt>=2.8
+loguru>=0.7

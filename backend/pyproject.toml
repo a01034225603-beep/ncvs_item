@@ -7,6 +7,7 @@ dependencies = [
   "uvicorn[standard]>=0.27",
   "sqlalchemy[asyncio]>=2.0",
   "aiomysql>=0.2",
+  "aiosqlite>=0.20",    # 로컬 테스트용 SQLite 드라이버 (서버는 aiomysql 사용)
   "alembic>=1.13",
   "pymysql>=1.1",
   "pydantic>=2.6",
@@ -31,9 +32,6 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
 asyncio_default_test_loop_scope = "session"
 testpaths = ["tests"]
-markers = [
-    "real_device: 실제 BACS 장비 연결 환경에서만 실행 (BACS_REAL_IP 환경변수 필요)",
-]
 
 [tool.ruff]
 line-length = 100

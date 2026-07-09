@@ -10,13 +10,30 @@ from app.models import *  # noqa: F401,F403
 config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
-sync_url = settings.DATABASE_URL.replace("+aiomysql", "+pymysql")
+
+# DB 드라이버 분기
+#   MySQL  : aiomysql → pymysql (alembic 동기 실행용)
+#   SQLite : aiosqlite → pysqlite (표준 내장 모듈, 별도 설치 불필요)
+_raw_url = settings.DATABASE_URL
+if _raw_url.startswith("sqlite"):
+    sync_url = _raw_url.replace("+aiosqlite", "")
+else:
+    sync_url = _raw_url.replace("+aiomysql", "+pymysql")
+
+# SQLite는 ALTER TABLE 미지원 → render_as_batch 활성화 (배치 모드로 에뮬레이션)
+_is_sqlite = _raw_url.startswith("sqlite")
+
 config.set_main_option("sqlalchemy.url", sync_url)
 target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
-    context.configure(url=sync_url, target_metadata=target_metadata, literal_binds=True)
+    context.configure(
+        url=sync_url,
+        target_metadata=target_metadata,
+        literal_binds=True,
+        render_as_batch=_is_sqlite,
+    )
     with context.begin_transaction():
         context.run_migrations()
 
@@ -28,7 +45,11 @@ def run_migrations_online() -> None:
         poolclass=pool.NullPool,
     )
     with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
+            render_as_batch=_is_sqlite,
+        )
         with context.begin_transaction():
             context.run_migrations()
 

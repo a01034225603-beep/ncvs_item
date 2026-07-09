@@ -1,5 +1,4 @@
 "use client";
-/** 장비 관리 페이지(/devices) - BACS 장비 CRUD + DeviceFormModal + 헬스체크 새로고침. */
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TopBar } from "@/components/TopBar";
@@ -13,6 +12,7 @@ export default function DevicesPage() {
   const [devices, setDevices]   = useState<Device[]>([]);
   const [health, setHealth]     = useState<Map<number, Health>>(new Map());
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError]           = useState<string | null>(null);
 
   // 모달 상태: null = 닫힘, undefined = 신규 등록, Device = 수정
   const [editTarget, setEditTarget] = useState<Device | null | undefined>(undefined);
@@ -23,13 +23,22 @@ export default function DevicesPage() {
   }, [router]);
 
   const loadDevices = useCallback(async () => {
-    const rows = await api.devices();
-    setDevices(rows);
+    try {
+      const rows = await api.devices();
+      setDevices(rows);
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "장비 목록을 불러오지 못했습니다.");
+    }
   }, []);
 
   const loadHealth = useCallback(async () => {
-    const rows = await api.health();
-    setHealth(new Map(rows.map((r) => [r.bacs_id, r])));
+    try {
+      const rows = await api.health();
+      setHealth(new Map(rows.map((r) => [r.bacs_id, r])));
+    } catch {
+      // 폴링 에러는 기존 헬스 데이터 유지
+    }
   }, []);
 
   useEffect(() => {
@@ -64,12 +73,8 @@ export default function DevicesPage() {
   // 장비 삭제
   async function handleDelete(device: Device) {
     if (!confirm(`"${device.name}" 를 삭제하시겠습니까?`)) return;
-    try {
-      await api.deleteDevice(device.id);
-      await loadDevices();
-    } catch (err: unknown) {
-      alert(`삭제 실패: ${err instanceof Error ? err.message : String(err)}`);
-    }
+    await api.deleteDevice(device.id);
+    await loadDevices();
   }
 
   const okCount  = [...devices].filter((d) => health.get(d.id)?.status === "online").length;
@@ -78,6 +83,37 @@ export default function DevicesPage() {
   return (
     <>
       <TopBar />
+
+      {/* ── 에러 배너 ── */}
+      {error && (
+        <div
+          style={{
+            position: "relative",
+            zIndex: 20,
+            background: "rgba(180,60,60,0.15)",
+            border: "1px solid rgba(180,60,60,0.4)",
+            borderLeft: "3px solid #c0392b",
+            padding: "10px 24px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            fontFamily: "var(--font-mono)",
+            fontSize: 11,
+            color: "#e57373",
+            letterSpacing: "0.05em",
+          }}
+        >
+          <span>⚠ {error}</span>
+          <button
+            onClick={() => setError(null)}
+            style={{
+              background: "none", border: "none",
+              color: "var(--color-fog)", cursor: "pointer",
+              fontSize: 16, lineHeight: 1, padding: "0 4px",
+            }}
+          >×</button>
+        </div>
+      )}
 
       {/* ── 헬스 요약 바 ── */}
       {health.size > 0 && (() => {

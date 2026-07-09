@@ -9,7 +9,7 @@
 from datetime import datetime
 from enum import Enum as PyEnum
 
-from sqlalchemy import BigInteger, DateTime, Enum, ForeignKey, Index, String
+from sqlalchemy import BigInteger, DateTime, Enum, ForeignKey, Index, SmallInteger, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -40,6 +40,8 @@ class TestSessionPair(Base):
     session_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("test_sessions.id"))
     src_bacs_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("bacs_devices.id", ondelete="CASCADE"))
     dst_bacs_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("bacs_devices.id", ondelete="CASCADE"))
+    # 라운드 번호 (1-based) — 같은 라운드 내 페어는 병렬, 다음 라운드는 이전 라운드 완료 후 시작
+    round_number: Mapped[int] = mapped_column(SmallInteger, default=1, nullable=False)
     status: Mapped[PairStatus] = mapped_column(Enum(PairStatus), default=PairStatus.pending)
     started_at: Mapped[datetime | None] = mapped_column(DateTime)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime)

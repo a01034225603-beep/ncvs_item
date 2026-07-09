@@ -1,29 +1,6 @@
-/**
- * 프로젝트 공용 TypeScript 타입 정의 모듈
- *
- * 역할:
- *   프론트엔드 전체에서 사용하는 데이터 타입을 한 곳에 정의한다.
- *   백엔드 Pydantic 스키마(schemas/)와 1:1 대응하며,
- *   API 응답 파싱과 컴포넌트 props 타입에 함께 사용된다.
- *
- *   주요 타입:
- *     Device       - BACS 장비 정보
- *     Session      - 호출시험 세션
- *     PairStatus   - 페어 실행 상태 (pending/running/ok/fail/skipped)
- *     PacketEvent  - 실시간 TCP 패킷 로그 이벤트 (SSE)
- */
 export type HealthStatus = "online" | "offline" | "unknown";
 export type SessionStatus = "queued" | "running" | "completed" | "cancelled" | "failed";
 export type PairStatus = "pending" | "running" | "ok" | "fail" | "skipped";
-
-/** SSE stream 이벤트 — 페어 한 개의 현재 상태 */
-export interface PairState {
-  id: number;
-  src_bacs_id: number;
-  dst_bacs_id: number;
-  status: PairStatus;
-  error_message: string | null;
-}
 
 export interface Device {
   id: number;
@@ -32,12 +9,13 @@ export interface Device {
   udp_port: number;
   tcp_port: number;
   location: string | null;
+  enabled: boolean;
+  // migration 0008 — 지도 위치 정보
   sido: string | null;
   sigungu: string | null;
   geo_x: number | null;
   geo_y: number | null;
-  enabled: boolean;
-  // 호출시험용 전화번호 (Port0·1 = TX 발신, Port2·3 = RX 착신)
+  // 포트별 전화번호 (0·1 = 발신TX, 2·3 = 착신RX)
   port0_phone: string | null;
   port1_phone: string | null;
   port2_phone: string | null;
@@ -50,11 +28,11 @@ export interface DeviceCreate {
   udp_port?: number;
   tcp_port?: number;
   location?: string | null;
+  enabled?: boolean;
   sido?: string | null;
   sigungu?: string | null;
   geo_x?: number | null;
   geo_y?: number | null;
-  enabled?: boolean;
   port0_phone?: string | null;
   port1_phone?: string | null;
   port2_phone?: string | null;
@@ -82,9 +60,27 @@ export interface Session {
   finished_at: string | null;
 }
 
-/** stream SSE 이벤트 — Session + 전체 페어 상태 목록 */
+export interface PairStateItem {
+  id: number;
+  src_bacs_id: number;
+  dst_bacs_id: number;
+  status: PairStatus;
+  error_message: string | null;
+}
+
 export interface SessionWithPairs extends Session {
-  pairs: PairState[];
+  pairs: PairStateItem[];
+}
+
+/** SSE 패킷 이벤트 — 호출시험 중 TX/RX 패킷 실시간 스트림 */
+export interface PacketEvent {
+  session_id: number;
+  pair_label: string;
+  direction: string;   // "TX" | "RX"
+  step: string;        // e.g. "CONNECT_REQ", "STARTUP_RPT"
+  hex_dump: string;    // 공백 구분 hex 문자열
+  parsed: Record<string, unknown>;
+  ts: string;          // ISO 8601
 }
 
 export interface Scenario {
@@ -108,46 +104,4 @@ export interface MatrixCell {
   status: "ok" | "fail";
   tested_at: string;
   error_message: string | null;
-}
-
-/**
- * 패킷 이벤트 — BACS_Control.md §1.3 기준으로 파싱된 단일 TCP 패킷.
- * /api/tests/{id}/packets SSE 스트림에서 수신한다.
- */
-export interface PacketParsed {
-  pkt_type?: string;
-  data_len?: number;
-  node_id?: number;
-  msg_type?: string;
-  msg_data_len?: number;
-  // CONNECT_LEVEL
-  level?: string;
-  // ERROR_RPT
-  err_code?: number;
-  err_code_desc?: string;
-  // CALL_REQ
-  port?: number;
-  phone_len?: number;
-  phone?: string;
-  // CALL_RPT
-  result_code?: string;
-  result_desc?: string;
-  // 파싱 실패
-  parse_error?: string;
-  [key: string]: unknown;
-}
-
-export interface PacketEvent {
-  session_id: number;
-  pair_label: string;
-  /** TX = 서버→BACS 송신, RX = BACS→서버 수신 */
-  direction: "TX" | "RX";
-  /** 단계 레이블 (예: "CONNECT_REQ", "STARTUP_RPT", "CALL_REQ[Port=0]") */
-  step: string;
-  /** raw hex (예: "01 10 09 00 ...") */
-  hex_dump: string;
-  /** BACS_Control.md 기준 파싱 결과 */
-  parsed: PacketParsed;
-  /** ISO 8601 UTC 타임스탬프 */
-  ts: string;
 }
