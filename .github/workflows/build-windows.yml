@@ -1,0 +1,121 @@
+name: Windows 인스톨러 빌드
+
+on:
+  # 수동 실행 (GitHub 웹에서 "Run workflow" 버튼)
+  workflow_dispatch:
+  # 또는 버전 태그 push 시 자동 실행
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: windows-latest   # ← GitHub이 제공하는 무료 Windows 서버
+
+    steps:
+      # ── 1. 코드 체크아웃 ─────────────────────────────────────────────────
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
+
+      # ── 2. Node.js 설치 ──────────────────────────────────────────────────
+      - name: Node.js 20 설치
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      # ── 3. Python 설치 ───────────────────────────────────────────────────
+      - name: Python 3.11 설치
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # ── 4. Python 빌드 의존성 설치 ───────────────────────────────────────
+      - name: PyInstaller + 트레이 의존성 설치
+        run: pip install pyinstaller pystray pillow
+
+      # ── 5. 프론트엔드 빌드 (Next.js standalone) ──────────────────────────
+      - name: 프론트엔드 의존성 설치
+        working-directory: frontend
+        run: npm ci
+
+      - name: 프론트엔드 빌드
+        working-directory: frontend
+        run: npm run build
+
+      # ── 6. dist 디렉터리 구성 ────────────────────────────────────────────
+      - name: dist 구성 — 프론트엔드
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path scripts/dist/frontend
+          Copy-Item -Recurse -Force frontend/.next/standalone/* scripts/dist/frontend/
+          Copy-Item -Recurse -Force frontend/.next/static       scripts/dist/frontend/.next/static
+          Copy-Item -Recurse -Force frontend/public             scripts/dist/frontend/public
+
+      - name: dist 구성 — 백엔드
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path scripts/dist/backend
+          Copy-Item -Recurse -Force backend/app      scripts/dist/backend/app
+          Copy-Item -Recurse -Force backend/alembic  scripts/dist/backend/alembic
+          Copy-Item -Force backend/alembic.ini        scripts/dist/backend/alembic.ini
+          Copy-Item -Force backend/pyproject.toml     scripts/dist/backend/pyproject.toml
+
+      - name: dist 구성 — 환경변수
+        shell: pwsh
+        run: Copy-Item -Force backend/.env.local scripts/dist/.env
+
+      # ── 7. Python embeddable 런타임 다운로드 ─────────────────────────────
+      - name: Python embeddable 런타임 준비
+        shell: pwsh
+        run: |
+          $url = "https://www.python.org/ftp/python/3.11.9/python-3.11.9-embed-amd64.zip"
+          Invoke-WebRequest -Uri $url -OutFile python-embed.zip
+          New-Item -ItemType Directory -Force -Path scripts/dist/python
+          Expand-Archive -Path python-embed.zip -DestinationPath scripts/dist/python
+
+          # pip 활성화 (._pth 파일 수정)
+          $pth = Get-ChildItem scripts/dist/python -Filter "*._pth" | Select-Object -First 1
+          (Get-Content $pth.FullName) -replace '#import site', 'import site' |
+            Set-Content $pth.FullName
+
+          # pip 설치
+          Invoke-WebRequest -Uri "https://bootstrap.pypa.io/get-pip.py" -OutFile get-pip.py
+          scripts/dist/python/python.exe get-pip.py --quiet
+
+          # 백엔드 패키지 설치
+          scripts/dist/python/python.exe -m pip install `
+            fastapi uvicorn[standard] sqlalchemy aiosqlite alembic `
+            pyjwt passlib[bcrypt] python-multipart asyncio-mqtt `
+            --quiet --no-warn-script-location
+
+      # ── 8. PyInstaller 런처 빌드 ─────────────────────────────────────────
+      - name: 트레이 런처 빌드 (PyInstaller)
+        shell: pwsh
+        working-directory: scripts/launcher
+        run: |
+          pyinstaller launcher.spec `
+            --distpath ../dist `
+            --workpath ../build_tmp `
+            --noconfirm
+
+      # ── 9. Inno Setup 인스톨러 컴파일 ────────────────────────────────────
+      - name: Inno Setup 설치
+        run: choco install innosetup --yes --no-progress
+        shell: pwsh
+
+      - name: 인스톨러 컴파일
+        shell: pwsh
+        working-directory: scripts
+        run: |
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" setup.iss
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      # ── 10. 결과물 업로드 ────────────────────────────────────────────────
+      - name: 인스톨러 업로드 (Artifacts)
+        uses: actions/upload-artifact@v4
+        with:
+          name: NCVS_Setup
+          path: scripts/Output/NCVS_Setup.exe
+          retention-days: 30   # 30일간 다운로드 가능
