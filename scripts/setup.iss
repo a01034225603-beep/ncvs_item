@@ -102,6 +102,8 @@ Filename: "taskkill.exe"; Parameters: "/F /IM node.exe /T"; Flags: runhidden
 [Code]
 // 설치 전 기존 프로세스 종료 확인
 procedure CurStepChanged(CurStep: TSetupStep);
+var
+  ResultCode: Integer;
 begin
   if CurStep = ssInstall then
   begin
