@@ -48,57 +48,72 @@ jobs:
       - name: dist 구성 — 프론트엔드
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path scripts/dist/frontend
-          Copy-Item -Recurse -Force frontend/.next/standalone/* scripts/dist/frontend/
-          Copy-Item -Recurse -Force frontend/.next/static       scripts/dist/frontend/.next/static
-          Copy-Item -Recurse -Force frontend/public             scripts/dist/frontend/public
+          New-Item -ItemType Directory -Force -Path scripts\dist\frontend | Out-Null
+          Copy-Item -Recurse -Force frontend\.next\standalone\* scripts\dist\frontend\
+          $staticDst = "scripts\dist\frontend\.next\static"
+          New-Item -ItemType Directory -Force -Path $staticDst | Out-Null
+          if (Test-Path "frontend\.next\static") {
+            Copy-Item -Recurse -Force "frontend\.next\static\*" $staticDst
+          }
+          if (Test-Path "frontend\public") {
+            Copy-Item -Recurse -Force "frontend\public" "scripts\dist\frontend\public"
+          }
+          Write-Host "프론트엔드 dist 완료"
 
       - name: dist 구성 — 백엔드
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path scripts/dist/backend
-          Copy-Item -Recurse -Force backend/app      scripts/dist/backend/app
-          Copy-Item -Recurse -Force backend/alembic  scripts/dist/backend/alembic
-          Copy-Item -Force backend/alembic.ini        scripts/dist/backend/alembic.ini
-          Copy-Item -Force backend/pyproject.toml     scripts/dist/backend/pyproject.toml
+          New-Item -ItemType Directory -Force -Path scripts\dist\backend | Out-Null
+          Copy-Item -Recurse -Force backend\app     scripts\dist\backend\app
+          Copy-Item -Recurse -Force backend\alembic scripts\dist\backend\alembic
+          Copy-Item -Force backend\alembic.ini      scripts\dist\backend\
+          Copy-Item -Force backend\pyproject.toml   scripts\dist\backend\
+          Write-Host "백엔드 dist 완료"
 
       - name: dist 구성 — 환경변수
         shell: pwsh
-        run: Copy-Item -Force backend/.env.local scripts/dist/.env
+        run: |
+          Copy-Item -Force backend\.env.local scripts\dist\.env
+          Write-Host "환경변수 복사 완료"
 
       # ── 7. Python embeddable 런타임 다운로드 ─────────────────────────────
       - name: Python embeddable 런타임 준비
         shell: pwsh
         run: |
           $url = "https://www.python.org/ftp/python/3.11.9/python-3.11.9-embed-amd64.zip"
-          Invoke-WebRequest -Uri $url -OutFile python-embed.zip
-          New-Item -ItemType Directory -Force -Path scripts/dist/python
-          Expand-Archive -Path python-embed.zip -DestinationPath scripts/dist/python
+          Invoke-WebRequest -Uri $url -OutFile python-embed.zip -UseBasicParsing
+          New-Item -ItemType Directory -Force -Path scripts\dist\python | Out-Null
+          Expand-Archive -Path python-embed.zip -DestinationPath scripts\dist\python -Force
 
-          # pip 활성화 (._pth 파일 수정)
-          $pth = Get-ChildItem scripts/dist/python -Filter "*._pth" | Select-Object -First 1
-          (Get-Content $pth.FullName) -replace '#import site', 'import site' |
-            Set-Content $pth.FullName
+          # pip 활성화 (._pth 파일에서 import site 주석 해제)
+          $pth = Get-ChildItem "scripts\dist\python" -Filter "*._pth" | Select-Object -First 1
+          if ($pth) {
+            $c = Get-Content $pth.FullName -Raw
+            $c = $c -replace '#import site', 'import site'
+            Set-Content -Path $pth.FullName -Value $c -NoNewline
+          }
 
           # pip 설치
-          Invoke-WebRequest -Uri "https://bootstrap.pypa.io/get-pip.py" -OutFile get-pip.py
-          scripts/dist/python/python.exe get-pip.py --quiet
+          Invoke-WebRequest -Uri "https://bootstrap.pypa.io/get-pip.py" -OutFile get-pip.py -UseBasicParsing
+          & "scripts\dist\python\python.exe" get-pip.py --quiet
+          if ($LASTEXITCODE -ne 0) { throw "pip 설치 실패" }
 
           # 백엔드 패키지 설치
-          scripts/dist/python/python.exe -m pip install `
-            fastapi uvicorn[standard] sqlalchemy aiosqlite alembic `
-            pyjwt passlib[bcrypt] python-multipart asyncio-mqtt `
-            --quiet --no-warn-script-location
+          $pkgs = "fastapi", "uvicorn[standard]", "sqlalchemy", "aiosqlite", "alembic", "pyjwt", "passlib[bcrypt]", "python-multipart"
+          & "scripts\dist\python\python.exe" -m pip install $pkgs --quiet --no-warn-script-location
+          if ($LASTEXITCODE -ne 0) { throw "패키지 설치 실패" }
+          Write-Host "Python 런타임 완료"
 
       # ── 8. PyInstaller 런처 빌드 ─────────────────────────────────────────
       - name: 트레이 런처 빌드 (PyInstaller)
         shell: pwsh
-        working-directory: scripts/launcher
+        working-directory: scripts\launcher
         run: |
           pyinstaller launcher.spec `
-            --distpath ../dist `
-            --workpath ../build_tmp `
+            --distpath ..\dist `
+            --workpath ..\build_tmp `
             --noconfirm
+          if ($LASTEXITCODE -ne 0) { throw "PyInstaller 빌드 실패" }
 
       # ── 9. Inno Setup 인스톨러 컴파일 ────────────────────────────────────
       - name: Inno Setup 설치
@@ -109,8 +124,11 @@ jobs:
         shell: pwsh
         working-directory: scripts
         run: |
-          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" setup.iss
-          if ($LASTEXITCODE -ne 0) { exit 1 }
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { $iscc = "${env:ProgramFiles}\Inno Setup 6\ISCC.exe" }
+          Write-Host "ISCC: $iscc"
+          & $iscc setup.iss
+          if ($LASTEXITCODE -ne 0) { throw "인스톨러 컴파일 실패" }
 
       # ── 10. 결과물 업로드 ────────────────────────────────────────────────
       - name: 인스톨러 업로드 (Artifacts)
