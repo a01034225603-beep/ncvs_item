@@ -37,7 +37,7 @@ Name: "korean"; MessagesFile: "compiler:Languages\Korean.isl"
 
 [Tasks]
 ; 바탕화면 바로가기 (기본 체크)
-Name: "desktopicon"; Description: "바탕화면에 바로가기 만들기"; GroupDescription: "추가 작업:"; Flags: checked
+Name: "desktopicon"; Description: "바탕화면에 바로가기 만들기"; GroupDescription: "추가 작업:"
 ; 시작 프로그램 등록
 Name: "startup"; Description: "Windows 시작 시 자동 실행"; GroupDescription: "추가 작업:"; Flags: unchecked
 
