@@ -1,9 +1,13 @@
 name: Windows 인스톨러 빌드
 
 on:
-  # 수동 실행 (GitHub 웹에서 "Run workflow" 버튼)
   workflow_dispatch:
-  # 또는 버전 태그 push 시 자동 실행
+    inputs:
+      ref:
+        description: '빌드할 브랜치 (기본: feature/map-topology)'
+        required: false
+        default: 'feature/map-topology'
+  # 버전 태그 push 시 자동 실행
   push:
     tags:
       - 'v*'
@@ -16,8 +20,9 @@ jobs:
       # ── 1. 코드 체크아웃 ─────────────────────────────────────────────────
       - name: 코드 체크아웃
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
 
-      # ── 2. Node.js 설치 ──────────────────────────────────────────────────
       - name: Node.js 22 설치
         uses: actions/setup-node@v4
         with:
@@ -33,13 +38,24 @@ jobs:
       - name: PyInstaller + 트레이 의존성 설치
         run: pip install pyinstaller pystray pillow
 
-      # ── 5. 프론트엔드 빌드 (Next.js standalone) ──────────────────────────
+      - name: 프론트엔드 경로 확인
+        shell: pwsh
+        run: |
+          if (Test-Path "frontend\package.json") {
+            "FRONTEND_DIR=frontend" | Out-File -FilePath $env:GITHUB_ENV -Append
+          } elseif (Test-Path "scripts\frontend\package.json") {
+            "FRONTEND_DIR=scripts/frontend" | Out-File -FilePath $env:GITHUB_ENV -Append
+          } else {
+            Write-Error "frontend/package.json 을 찾을 수 없습니다."
+            exit 1
+          }
+
       - name: 프론트엔드 의존성 설치
-        working-directory: frontend
+        working-directory: ${{ env.FRONTEND_DIR }}
         run: npm ci
 
       - name: 프론트엔드 빌드
-        working-directory: frontend
+        working-directory: ${{ env.FRONTEND_DIR }}
         run: npm run build
 
       # ── 6. dist 디렉터리 구성 ────────────────────────────────────────────
