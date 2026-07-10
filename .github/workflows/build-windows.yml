@@ -129,6 +129,13 @@ jobs:
             --noconfirm
           if ($LASTEXITCODE -ne 0) { throw "PyInstaller 빌드 실패" }
 
+      - name: 런처 실행파일 위치 정리
+        shell: pwsh
+        run: |
+          # PyInstaller가 scripts/dist/launcher/NCVS.exe 로 출력 → setup.iss 가 기대하는 scripts/dist/NCVS.exe 로 복사
+          Copy-Item -Force scripts\dist\launcher\NCVS.exe scripts\dist\NCVS.exe
+          Write-Host "런처 복사 완료: scripts\dist\NCVS.exe"
+
       # ── 9. Inno Setup 인스톨러 컴파일 ────────────────────────────────────
       - name: Inno Setup 설치
         run: choco install innosetup --yes --no-progress
