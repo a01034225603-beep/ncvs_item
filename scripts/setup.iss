@@ -25,7 +25,6 @@ Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
 ; 설치 완료 후 자동 실행 런처
-SetupIconFile=
 UninstallDisplayIcon={app}\{#AppExeName}
 ; 관리자 권한 필요 (Program Files 설치)
 PrivilegesRequired=admin
