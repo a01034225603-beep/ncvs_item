@@ -123,30 +123,24 @@ jobs:
         shell: pwsh
         working-directory: scripts\launcher
         run: |
-          pyinstaller launcher.spec `
+          pyinstaller launcher.py `
+            --name NCVS `
+            --onefile `
             --distpath ..\dist `
             --workpath ..\build_tmp `
-            --noconfirm
+            --noconfirm `
+            --noconsole
           if ($LASTEXITCODE -ne 0) { throw "PyInstaller 빌드 실패" }
 
-      - name: 런처 실행파일 위치 정리
+      - name: 런처 실행파일 검증
         shell: pwsh
         run: |
-          $candidates = @(
-            "scripts\dist\launcher\NCVS.exe",
-            "scripts\dist\NCVS\NCVS.exe",
-            "scripts\dist\NCVS.exe"
-          )
-          $src = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
-          if (-not $src) {
-            Write-Error "NCVS.exe를 찾지 못했습니다. 실제 출력 목록:"
+          if (-not (Test-Path "scripts\dist\NCVS.exe")) {
+            Write-Error "scripts\dist\NCVS.exe가 생성되지 않았습니다. 실제 출력 목록:"
             Get-ChildItem -Recurse scripts\dist -Filter "*.exe" | Select-Object FullName
             exit 1
           }
-          if ($src -ne "scripts\dist\NCVS.exe") {
-            Copy-Item -Force $src "scripts\dist\NCVS.exe"
-          }
-          Write-Host "런처 준비 완료: $src -> scripts\dist\NCVS.exe"
+          Write-Host "런처 준비 완료: scripts\dist\NCVS.exe"
 
       # ── 9. Inno Setup 인스톨러 컴파일 ────────────────────────────────────
       - name: Inno Setup 설치
