@@ -42,22 +42,22 @@ Name: "startup"; Description: "Windows 시작 시 자동 실행"; GroupDescripti
 
 [Files]
 ; 런처 exe
-Source: "..\dist\NCVS.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "dist\NCVS.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 ; Python 임베디드 런타임
-Source: "..\dist\python\*"; DestDir: "{app}\python"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "dist\python\*"; DestDir: "{app}\python"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 ; Node.js 포터블
-Source: "..\dist\node\*"; DestDir: "{app}\node"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "dist\node\*"; DestDir: "{app}\node"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 ; 백엔드 소스
-Source: "..\dist\backend\*"; DestDir: "{app}\backend"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "dist\backend\*"; DestDir: "{app}\backend"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 ; 프론트엔드 standalone 빌드
-Source: "..\dist\frontend\*"; DestDir: "{app}\frontend"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "dist\frontend\*"; DestDir: "{app}\frontend"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 ; 환경변수 파일
-Source: "..\dist\.env"; DestDir: "{app}"; Flags: ignoreversion onlyifdoesntexist
+Source: "dist\.env"; DestDir: "{app}"; Flags: ignoreversion onlyifdoesntexist
 
 [Dirs]
 ; DB 데이터 디렉터리 (설치 시 생성)
