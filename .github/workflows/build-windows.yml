@@ -1,9 +1,14 @@
 name: Windows 인스톨러 빌드
 
 on:
-  # 수동 실행 (GitHub 웹에서 "Run workflow" 버튼)
+  # 수동 실행 — "Use workflow from" 브랜치와 무관하게 ref 직접 지정 가능
   workflow_dispatch:
-  # 또는 버전 태그 push 시 자동 실행
+    inputs:
+      ref:
+        description: '빌드할 브랜치 또는 태그 (예: feature/map-topology)'
+        required: false
+        default: 'feature/map-topology'
+  # 버전 태그 push 시 자동 실행
   push:
     tags:
       - 'v*'
@@ -16,6 +21,8 @@ jobs:
       # ── 1. 코드 체크아웃 ─────────────────────────────────────────────────
       - name: 코드 체크아웃
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
 
       # ── 2. Node.js 설치 ──────────────────────────────────────────────────
       - name: Node.js 22 설치
