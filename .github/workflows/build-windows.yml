@@ -132,9 +132,21 @@ jobs:
       - name: 런처 실행파일 위치 정리
         shell: pwsh
         run: |
-          # PyInstaller가 scripts/dist/launcher/NCVS.exe 로 출력 → setup.iss 가 기대하는 scripts/dist/NCVS.exe 로 복사
-          Copy-Item -Force scripts\dist\launcher\NCVS.exe scripts\dist\NCVS.exe
-          Write-Host "런처 복사 완료: scripts\dist\NCVS.exe"
+          $candidates = @(
+            "scripts\dist\launcher\NCVS.exe",
+            "scripts\dist\NCVS\NCVS.exe",
+            "scripts\dist\NCVS.exe"
+          )
+          $src = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $src) {
+            Write-Error "NCVS.exe를 찾지 못했습니다. 실제 출력 목록:"
+            Get-ChildItem -Recurse scripts\dist -Filter "*.exe" | Select-Object FullName
+            exit 1
+          }
+          if ($src -ne "scripts\dist\NCVS.exe") {
+            Copy-Item -Force $src "scripts\dist\NCVS.exe"
+          }
+          Write-Host "런처 준비 완료: $src -> scripts\dist\NCVS.exe"
 
       # ── 9. Inno Setup 인스톨러 컴파일 ────────────────────────────────────
       - name: Inno Setup 설치
