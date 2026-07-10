@@ -90,6 +90,22 @@ jobs:
           Copy-Item -Force backend\.env.local scripts\dist\.env
           Write-Host "환경변수 복사 완료"
 
+      - name: Node.js 포터블 번들 준비
+        shell: pwsh
+        run: |
+          # Next.js standalone server.js 실행에 필요한 Node.js 포터블 다운로드
+          $nodeVer = "22.16.0"
+          $url = "https://nodejs.org/dist/v$nodeVer/node-v$nodeVer-win-x64.zip"
+          Write-Host "Node.js 포터블 다운로드: $url"
+          Invoke-WebRequest -Uri $url -OutFile node-portable.zip -UseBasicParsing
+          New-Item -ItemType Directory -Force -Path scripts\dist\node | Out-Null
+          Expand-Archive -Path node-portable.zip -DestinationPath scripts\dist\node_tmp -Force
+          # 압축 해제 결과가 node-v22.x.x-win-x64\ 서브폴더로 나옴 → node\ 로 이동
+          $inner = Get-ChildItem scripts\dist\node_tmp | Select-Object -First 1
+          Copy-Item -Recurse -Force "$($inner.FullName)\*" scripts\dist\node\
+          Remove-Item -Recurse -Force scripts\dist\node_tmp
+          Write-Host "Node.js 포터블 준비 완료: scripts\dist\node\node.exe"          Write-Host "환경변수 복사 완료"
+
       # ── 7. Python embeddable 런타임 다운로드 ─────────────────────────────
       - name: Python embeddable 런타임 준비
         shell: pwsh
